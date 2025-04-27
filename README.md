@@ -1,7 +1,10 @@
 # TTS Ebook Preprocessing Tool (bookfix.py)
 
 This is a small Python program designed to help preprocess ebook text files to fix common issues before using them for text-to-speech (TTS) or other applications. It provides a graphical interface to guide the user through interactive decisions and apply automatic cleanup rules.
+    * **`#NOTE:`**: This program works on .txt files right now.  To work with ebooks code would need to be added to unzip and deconstruct the ebook and process each file.  The main problem I've encountered in this is dealing with the markup of the html files ebooks are mode of.  
+    It's doable, I've done it in a different version, but it breaks easily as I use AI to program and AI alwalys wants to change or tinker or streamline code it's already written regardless of if it bears on what you are currently changing.
 
+    
 ## Synopsis
 
 The `bookfix.py` script is a GUI tool built with the Tkinter library. Its main goal is to help users clean and standardize text from input files (like **.txt**, **.html**, and **.xhtml**), by providing a way to handle inconsistent wording and apply automatic cleanup rules.
