@@ -1,0 +1,235 @@
+# Manually edit this file to add or remove from each section.
+
+
+# Here you can add for period replacement.  This function is commented out in the code. To reenable it just uncomment the line.
+# Some other/earlier TTS tried to pronouce AI for instance.  eb2ab does not like periods.  c.e.o has long pauses between the letter and # the voice drags when pronouning each subsequent letter.  It does fine with CEO or ceo. Kokoro on the the other hand will take all
+# 3 variants and not stutter.
+# One reason it was kept is that bookfix converts everything to lowercase.  At the time of creation I was working with a lot of books
+# that had ALL CAPS for emphasis and even entire sentences in caps. I'm not sure how that effects eb2ab, but koroko doesn't seem to notice.
+# As this code has evolved though differenet tts engines some is no longer relevant. You decide.
+# PERIODS
+AI
+AM
+APC
+ATF
+ATV
+BC
+BP
+CDC
+CEO
+CGI
+CIA
+CIC
+CMO
+CO
+COD
+CPL
+CPO
+CPR
+CPU
+CT
+DEA
+DHS
+DJ
+DNA
+DOJ
+DZ
+ECG
+EEG
+EM
+EMF
+EMP
+EMS
+EMT
+EMU
+EPA
+ETA
+EVA
+FBI
+FCC
+FDA
+FL
+FM
+FTL
+GED
+GMO
+GPS
+HIV
+HQ
+ICBM
+ICU
+ID
+IED
+IP
+IQ
+IRS
+KIA
+LED
+LZ
+MBA
+MCU
+MIA
+MIT
+MOA
+MOS
+MPH
+MRE
+MRI
+MSP
+MUH
+MUSA
+NCO
+NCOIC
+NDA
+NFL
+NSA
+OJT
+PFC
+POW
+PSI
+PTSD
+QT
+RNA
+RPM
+SEC
+SF
+SOB
+SOG
+SONAR
+SOP
+SOS
+SR
+STC
+SUB
+SUV
+THC
+TV
+UAV
+UFP
+UN
+UPF
+US
+USA
+VA
+VIP
+VP
+VR
+WHO
+WMD
+X-RAY
+XO
+
+# this is the automatic replace.  the given word is simply replaced with the alternative to correct pronouciation.  Depending on your tts engine you might
+# need to adjust these. Also, some of these are book/genre specific. And some are specifc to MY ear so they may need to be adjusted for your region or dialect.
+
+# REPLACE
+burger -> bergur
+gimbal -> gimbul
+pita -> peata
+futile -> futill
+andromeda -> an-dromadda
+andromeda -> Andrama-dinns
+regge -> raygay
+Dr. -> doctor
+.45  ->  45
+MTAC -> emtac
+Ma’am  ->  Mam
+SOLCOM -> saulcom
+TSK* ->  TISK
+VTOL\* -> veetol
+WWII -> world war 2
+* ->
+bolo -> bo-low
+badass -> bad-ass
+badasses -> bad-asses
+barrage -> bahraj
+bolo -> bowlow
+bolos -> bo lows
+console -> konsole
+consoles -> konsoles
+couch -> cowch
+debris -> debree
+decel -> decell
+dove -> duv
+ensine -> ensin
+grenade -> grenaid
+grimace -> grimis
+nanite -> nan-ite
+necktie -> necktye
+panged -> paynged
+stating -> stayting
+wound -> woond
+staring -> stairing
+lasagne -> lazanya
+jean-luc -> schaun-luke
+dalek -> darlek
+breathed -> breethed
+sleeped -> slept
+speeded -> sped
+kneeled -> knelt
+leaned -> leant
+burned -> burnt
+dreamed -> dreamt
+learned -> learnt
+spelled -> spelt
+spilled -> spilt
+spoiled -> spoilt
+dived -> dove
+sinked -> sank
+drinked -> drank
+swimmed -> swam
+broked -> broke
+choosed -> chose
+growed -> grew
+knowed -> knew
+throwed -> threw
+writed -> wrote
+
+
+
+# This is for heteronyms - words that are spelled one way but can be pronouced differently depending on meaning.
+# it looks for the word lead then offers the choice of reed or red and depending on your selection it will change the spelling in the text.
+# As the program changes things to lower case I've offered some choices like OBject and UBject to make it easier to distinquish visual the procouciation.
+# since the program converts all to lowercase this doesn't matter and I did a small test to confirm that eb2ab has no issue procouncing
+# CONtest and contest exactly the same. If convert to lowercase is dissabled then it shouldn't be an issue.
+
+# CHOICE
+morale -> morAL ; more-al
+lead -> leed ; led
+tear -> teer ; tair
+bow -> boh ; bau
+close -> klohZ ; close
+sow -> soh ; sau
+wind -> wined ; wind
+minute -> minit ; mynoot
+object -> OBjekt ; UBjekt
+read -> reed ; red
+row -> row ; rau
+bass -> base ; bhass
+alternate -> allturnit ; awlturneight
+contract -> CONtrakt ; KUNtrakt
+attribute -> attribute ; at-tribbute
+desert -> dezurt ; dizurt
+excuse -> exkuZe ; exkuCe
+refuse -> refuSe ; refuZe
+polish -> polish ; pole-ish
+present -> present ; prezent
+record -> rekord ; rekkURD
+invalid ->  inv-alid ; in-valid
+wound -> woond ; wownd
+resume -> rezoom ; rezzoomay
+contest -> CONtest ; Cuntest
+
+
+
+# UPPER_TO_LOWER (depricated)
+SARS
+DARPA
+NASA
+COVID
+RADAR
+HUD
+ASAP
+AWOL
+AIDS
+NATO
