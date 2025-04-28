@@ -4,7 +4,11 @@ This is a small Python program designed to help preprocess ebook text files to f
     * **`#NOTE:`**: This program works on .txt files right now.  To work with ebooks code would need to be added to unzip and deconstruct the ebook and process each file.  The main problem I've encountered in this is dealing with the markup of the html files ebooks are mode of.  
     It's doable, I've done it in a different version, but it breaks easily as I use AI to program and AI alwalys wants to change or tinker or streamline code it's already written regardless of if it bears on what you are currently changing.
 
-    
+## NOTE:
+
+This program is written in python and tested on a linux OS.  It uses text files (epub converted with calibre manually) but has in the past been modified to use epubs.  This required decompresisng the epub into it's html parts, then editing each file. It was doable and worked but getting the program to ignore the markup text was difficult and easily broken.  Thext is better and can be converted back to epub if you want.  The main reason is if you want chapters.  This sometimes works if chapters are marked with 'chapter #' otherwise no.  An audio file can have set timed interval "chapters" added to it though with some minimal effort.
+
+
 ## Synopsis
 
 The `bookfix.py` script is a GUI tool built with the Tkinter library. Its main goal is to help users clean and standardize text from input files (like **.txt**, **.html**, and **.xhtml**), by providing a way to handle inconsistent wording and apply automatic cleanup rules.
