@@ -220,16 +220,38 @@ wound -> woond ; wownd
 resume -> rezoom ; rezzoomay
 contest -> CONtest ; Cuntest
 
+# this section below are words always converted to lowercase. good for words like NASA which should be pronoucned as nasa not spelled out.
 
 
-# UPPER_TO_LOWER (depricated)
-SARS
-DARPA
+# UPPER_TO_LOWER
 NASA
-COVID
-RADAR
 HUD
+NAV
+
+
+# CAP_IGNORE
+AI
+AIDS
 ASAP
 AWOL
-AIDS
+COVID
+DARPA
+EVA
+FTL
+GQ
+HUD
+ID
+IDF
+LA
+NASA
 NATO
+NC
+PT
+RADAR
+RCS
+SARS
+UCLA
+US
+USMC
+USS
+XO
