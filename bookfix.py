@@ -19,7 +19,10 @@
 # Added detailed logging to track execution flow in run_processing and individual steps.
 # CORRECTED load_data_file parsing logic and added logging within it.
 # Added logging around the run_processing call.
-# Last generated: 05-01-25 16:50
+# Added file.flush() in log_message for immediate writing to log file.
+# Implemented loading default directory from .data.txt and GUI prompt/save if not found.
+# Added message boxes for prompting and confirming default directory selection.
+# Last generated: 05-01-25 18:05
 
 import tkinter as tk # Import the Tkinter library for creating the GUI
 from tkinter import messagebox, filedialog, ttk # Import specific modules, including ttk
@@ -31,6 +34,7 @@ from tkinter.font import Font # Import Font for custom text styling in the GUI
 from tkinter.ttk import Progressbar # Import Progressbar for showing processing progress
 from tkinter import BooleanVar # Import BooleanVar for checkboxes
 import datetime # Import datetime for timestamps in logs
+from pathlib import Path # Use pathlib for easier path manipulation
 
 # --- Global Variables (used across functions) ---
 text_area = None
@@ -50,6 +54,7 @@ replacements = {} # Dictionary for automatic replacements (original bookfix)
 periods = set() # Set for abbreviations needing periods (original bookfix)
 ignore_set = set() # Set for all-caps sequences to ignore (integrated caps.py)
 lowercase_set = set() # Set for all-caps sequences to auto-lowercase (integrated caps.py)
+default_file_directory = None # New global variable for the default file dialog directory
 
 # Variables for interactive all-caps processing
 current_caps_sequence = None # The all-caps sequence text being processed
@@ -75,13 +80,14 @@ process_all_caps_var = None # New checkbox for all-caps processing
 
 # --- Logging Function ---
 def log_message(message, level="INFO"):
-    """Logs a timestamped message to stderr and a log file."""
+    """Logs a timestamped message to stderr and a log file, flushing immediately."""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}] [{level}] {message}"
-    print(log_entry, file=sys.stderr)
+    print(log_entry, file=sys.stderr) # Print to stderr
     try:
         with open(log_file_path, "a", encoding="utf-8") as f:
             f.write(log_entry + "\n")
+            f.flush() # Explicitly flush the buffer to ensure immediate writing
     except Exception as e:
         print(f"Error writing to log file {log_file_path}: {e}", file=sys.stderr)
 
@@ -93,6 +99,7 @@ REPLACE_SECTION_MARKER = "# REPLACE" # Corrected marker spacing based on user fi
 PERIODS_SECTION_MARKER = "# PERIODS" # Corrected marker spacing based on user file
 IGNORE_SECTION_MARKER = "# CAP_IGNORE" # From caps.py
 LOWERCASE_SECTION_MARKER = "# UPPER_TO_LOWER" # From caps.py
+DEFAULT_DIR_SECTION_MARKER = "# DEFAULT_FILE_DIR" # New marker for default directory
 
 # List of all section markers to help identify the end of a section's content
 ALL_SECTION_MARKERS = {
@@ -100,23 +107,25 @@ ALL_SECTION_MARKERS = {
     REPLACE_SECTION_MARKER,
     PERIODS_SECTION_MARKER,
     IGNORE_SECTION_MARKER,
-    LOWERCASE_SECTION_MARKER
+    LOWERCASE_SECTION_MARKER,
+    DEFAULT_DIR_SECTION_MARKER # Include the new marker
 }
 
 
 def load_data_file():
     """
-    Loads all data (choices, replacements, periods, ignore, lowercase)
+    Loads all data (choices, replacements, periods, ignore, lowercase, default dir)
     by manually parsing the .data.txt file based on # SECTION markers.
     Corrected parsing logic to stop collecting content only at the *next* section marker.
     """
-    global choices, replacements, periods, ignore_set, lowercase_set # Declare globals
+    global choices, replacements, periods, ignore_set, lowercase_set, default_file_directory # Declare globals
 
     choices = {}
     replacements = {}
     periods = set()
     ignore_set = set()
     lowercase_set = set()
+    default_file_directory = None # Reset default directory on load
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_file_path = os.path.join(script_dir, DATA_FILE_NAME)
@@ -147,6 +156,8 @@ def load_data_file():
                         current_section = 'ignore'
                     elif stripped_line == LOWERCASE_SECTION_MARKER:
                         current_section = 'lowercase'
+                    elif stripped_line == DEFAULT_DIR_SECTION_MARKER: # Handle new section
+                         current_section = 'default_dir'
                     continue # Skip to the next line after processing a marker
 
                 # If we are in a section and the line is not empty and not a comment, process it
@@ -177,6 +188,17 @@ def load_data_file():
                     elif current_section == 'lowercase':
                         lowercase_set.add(stripped_line)
                         log_message(f"DEBUG: Added lowercase sequence: '{stripped_line}'")
+                    elif current_section == 'default_dir': # Process default directory line
+                         # Take the first non-comment, non-empty line as the default directory
+                         if default_file_directory is None: # Only set if not already set
+                              potential_path = Path(stripped_line).expanduser()
+                              if potential_path.is_dir():
+                                   default_file_directory = potential_path
+                                   log_message(f"DEBUG: Loaded default directory: '{default_file_directory}'")
+                              else:
+                                   log_message(f"DEBUG: Invalid default directory path in file: '{stripped_line}'", level="WARNING")
+
+
                 elif current_section and stripped_line.startswith('#'):
                      log_message(f"DEBUG: Skipping comment line within section '{current_section}': '{stripped_line}'")
                 elif current_section and not stripped_line:
@@ -186,6 +208,10 @@ def load_data_file():
             log_message("DEBUG: Finished data file parsing.")
             log_message(f"Loaded {len(choices)} choice rules, {len(replacements)} replacement rules, {len(periods)} period rules.")
             log_message(f"Loaded {len(ignore_set)} ignore sequences, {len(lowercase_set)} automatic lowercase sequences.")
+            if default_file_directory:
+                 log_message(f"Loaded default file directory: {default_file_directory}")
+            else:
+                 log_message("No valid default file directory found in .data.txt.")
 
 
         except Exception as e:
@@ -196,21 +222,23 @@ def load_data_file():
             periods = set()
             ignore_set = set()
             lowercase_set = set()
+            default_file_directory = None # Ensure this is also reset
+
     else:
         log_message(f"Data file '{DATA_FILE_NAME}' not found. Starting with empty rules.", level="WARNING")
+        default_file_directory = None # Ensure this is None if file doesn't exist
 
 
-def save_caps_data_file(ignore_set, lowercase_set):
+def save_default_directory_to_data_file(directory_path):
     """
-    Saves the current ignore and automatic lowercase sequences to the .data.txt file.
-    Reads the existing file, updates the specific sections, and writes back,
+    Saves the given directory path to the # DEFAULT_FILE_DIR section in .data.txt.
+    Reads the existing file, updates/creates the section, and writes back,
     preserving other sections and comments.
-    Adjusted parsing logic to correctly find section boundaries.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_file_path = os.path.join(script_dir, DATA_FILE_NAME)
 
-    log_message(f"Attempting to save data file: {data_file_path}")
+    log_message(f"Attempting to save default directory '{directory_path}' to data file: {data_file_path}")
 
     original_lines = []
     if os.path.exists(data_file_path):
@@ -218,17 +246,17 @@ def save_caps_data_file(ignore_set, lowercase_set):
             with open(data_file_path, 'r', encoding='utf-8') as f:
                 original_lines = f.readlines()
         except Exception as e:
-            log_message(f"Warning: Could not read existing data file '{data_file_path}' for saving: {e}. Overwriting only target sections.", level="WARNING")
+            log_message(f"Warning: Could not read existing data file '{data_file_path}' for saving default directory: {e}. Will attempt to create/overwrite only the target section.", level="WARNING")
             original_lines = [] # Start with empty lines if reading fails
 
-    # Find the start and end line indices for the content within the target sections
-    # Content starts after the marker and ends before the next marker or end of file
+    # Find the start and end line indices for the content within the target section
     section_indices = {}
     current_section_start_idx = -1
     current_section_name = None
 
     for i, line in enumerate(original_lines):
          stripped_line = line.strip()
+         # Check if the line is any known section marker
          if stripped_line in ALL_SECTION_MARKERS:
               # If we were in a section, mark its end
               if current_section_name and current_section_start_idx != -1:
@@ -239,7 +267,105 @@ def save_caps_data_file(ignore_set, lowercase_set):
                    REPLACE_SECTION_MARKER: 'replace',
                    PERIODS_SECTION_MARKER: 'periods',
                    IGNORE_SECTION_MARKER: 'ignore',
-                   LOWERCASE_SECTION_MARKER: 'lowercase'
+                   LOWERCASE_SECTION_MARKER: 'lowercase',
+                   DEFAULT_DIR_SECTION_MARKER: 'default_dir'
+              }.get(stripped_line)
+              current_section_start_idx = i + 1 # Content starts on the line after the marker
+
+    # After the loop, if we were in a section, its content ends at the end of the file
+    if current_section_name and current_section_start_idx != -1:
+         section_indices[current_section_name] = (current_section_start_idx, len(original_lines))
+
+
+    # Build the new content lines for the default directory section
+    new_default_dir_content_lines = [str(directory_path) + '\n'] # The path itself, followed by a newline
+
+    # Construct the new list of lines by replacing the content within the default dir section
+    new_lines = []
+    i = 0
+    default_dir_section_handled = False
+
+    while i < len(original_lines):
+        line = original_lines[i]
+        stripped_line = line.strip()
+
+        # Check if this line is the start of the default directory section
+        if stripped_line == DEFAULT_DIR_SECTION_MARKER and 'default_dir' in section_indices:
+            start_idx, end_idx = section_indices['default_dir']
+            new_lines.append(line) # Keep the section marker line
+            new_lines.extend(new_default_dir_content_lines) # Insert the new content
+            i = end_idx # Jump past the old content lines
+            default_dir_section_handled = True
+            continue # Continue to the next line after the skipped block
+
+        # If it's not the start of the default dir section, keep the original line
+        new_lines.append(line)
+        i += 1
+
+    # If the default directory section didn't exist in the original file, append it
+    if not default_dir_section_handled:
+         # Add newline only if the file is not empty and the last line is not empty
+         if new_lines and new_lines[-1].strip() != '':
+              new_lines.append('\n')
+         new_lines.append(DEFAULT_DIR_SECTION_MARKER + '\n')
+         new_lines.extend(new_default_dir_content_lines)
+
+
+    try:
+        # If the file didn't exist, create its parent directories first
+        Path(data_file_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(data_file_path, 'w', encoding='utf-8') as f:
+            f.writelines(new_lines)
+        log_message(f"Default directory '{directory_path}' saved to '{DATA_FILE_NAME}'.")
+    except Exception as e:
+        log_message(f"Error saving default directory to data file '{data_file_path}': {e}", level="ERROR")
+
+
+def save_caps_data_file(ignore_set, lowercase_set):
+    """
+    Saves the current ignore and automatic lowercase sequences to the .data.txt file.
+    Reads the existing file, updates the specific sections, and writes back,
+    preserving other sections and comments.
+    Adjusted parsing logic to correctly find section boundaries.
+    NOTE: This function only saves the CAP_IGNORE and UPPER_TO_LOWER sections.
+    A more comprehensive save function handling all sections would be needed
+    if other sections are modified by the GUI.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_file_path = os.path.join(script_dir, DATA_FILE_NAME)
+
+    log_message(f"Attempting to save CAP_IGNORE and UPPER_TO_LOWER sections to data file: {data_file_path}")
+
+    original_lines = []
+    if os.path.exists(data_file_path):
+        try:
+            with open(data_file_path, 'r', encoding='utf-8') as f:
+                original_lines = f.readlines()
+        except Exception as e:
+            log_message(f"Warning: Could not read existing data file '{data_file_path}' for saving caps data: {e}. Overwriting only target sections.", level="WARNING")
+            original_lines = [] # Start with empty lines if reading fails
+
+    # Find the start and end line indices for the content within the target sections
+    # Content starts after the marker and ends before the next marker or end of file
+    section_indices = {}
+    current_section_start_idx = -1
+    current_section_name = None
+
+    for i, line in enumerate(original_lines):
+         stripped_line = line.strip()
+         # Check if the line is any known section marker
+         if stripped_line in ALL_SECTION_MARKERS:
+              # If we were in a section, mark its end
+              if current_section_name and current_section_start_idx != -1:
+                   section_indices[current_section_name] = (current_section_start_idx, i) # End is line *before* next marker
+              # Start the new section
+              current_section_name = {
+                   CHOICE_SECTION_MARKER: 'choice',
+                   REPLACE_SECTION_MARKER: 'replace',
+                   PERIODS_SECTION_MARKER: 'periods',
+                   IGNORE_SECTION_MARKER: 'ignore',
+                   LOWERCASE_SECTION_MARKER: 'lowercase',
+                   DEFAULT_DIR_SECTION_MARKER: 'default_dir'
               }.get(stripped_line)
               current_section_start_idx = i + 1 # Content starts on the line after the marker
 
@@ -255,6 +381,9 @@ def save_caps_data_file(ignore_set, lowercase_set):
     # Construct the new list of lines by replacing the content within the found sections
     new_lines = []
     i = 0
+    ignore_section_handled = False
+    lowercase_section_handled = False
+
     while i < len(original_lines):
         line = original_lines[i]
         stripped_line = line.strip()
@@ -265,6 +394,7 @@ def save_caps_data_file(ignore_set, lowercase_set):
             new_lines.append(line) # Keep the section marker line
             new_lines.extend(new_ignore_content_lines) # Insert the new content
             i = end_idx # Jump past the old content lines
+            ignore_section_handled = True
             continue # Continue to the next line after the skipped block
 
         elif stripped_line == LOWERCASE_SECTION_MARKER and 'lowercase' in section_indices:
@@ -272,6 +402,7 @@ def save_caps_data_file(ignore_set, lowercase_set):
             new_lines.append(line) # Keep the section marker line
             new_lines.extend(new_lowercase_content_lines) # Insert the new content
             i = end_idx # Jump past the old content lines
+            lowercase_section_handled = True
             continue # Continue to the next line after the skipped block
 
         # If it's not the start of a section we are replacing, keep the original line
@@ -279,42 +410,50 @@ def save_caps_data_file(ignore_set, lowercase_set):
         i += 1
 
     # If sections didn't exist in the original file but have content now, append them
-    if 'ignore' not in section_indices and ignore_set:
-         if new_lines and new_lines[-1].strip() != '': # Add newline only if last line is not empty
+    # Append only if the section wasn't found and handled in the original file
+    if not ignore_section_handled and ignore_set:
+         # Add newline only if last line is not empty
+         if new_lines and new_lines[-1].strip() != '':
               new_lines.append('\n')
          new_lines.append(IGNORE_SECTION_MARKER + '\n')
          new_lines.extend(new_ignore_content_lines)
 
-    if 'lowercase' not in section_indices and lowercase_set:
-         if new_lines and new_lines[-1].strip() != '': # Add newline only if last line is not empty
+    if not lowercase_section_handled and lowercase_set:
+         # Add newline only if last line is not empty
+         if new_lines and new_lines[-1].strip() != '':
               new_lines.append('\n')
          new_lines.append(LOWERCASE_SECTION_MARKER + '\n')
          new_lines.extend(new_lowercase_content_lines)
 
 
     try:
+        # If the file didn't exist, create its parent directories first
+        Path(data_file_path).parent.mkdir(parents=True, exist_ok=True)
         with open(data_file_path, 'w', encoding='utf-8') as f:
             f.writelines(new_lines)
-        log_message(f"Data file '{DATA_FILE_NAME}' updated successfully.")
+        log_message(f"Data file '{DATA_FILE_NAME}' updated successfully (CAP_IGNORE, UPPER_TO_LOWER sections).")
     except Exception as e:
-        log_message(f"Error saving data file '{data_file_path}': {e}", level="ERROR")
+        log_message(f"Error saving data file '{data_file_path}' (CAP_IGNORE, UPPER_TO_LOWER sections): {e}", level="ERROR")
 
 
 # --- File Selection Function ---
 def select_file():
     """
     Opens a file dialog for the user to select an input text file.
+    Uses the global default_file_directory for the initial directory.
     Includes settings to show hidden files.
 
     Returns:
         str or None: The full path to the selected file, or None if cancelled.
     """
+    global default_file_directory # Need access to the global default
+
     log_message("Opening file selection dialog.")
-    # Set the default directory for the file dialog
-    start_dir = "/home/danno/Calibre Library"
-    # Fallback to the user's home directory if the default doesn't exist
-    if not os.path.isdir(start_dir):
-        start_dir = os.path.expanduser("~")
+
+    # Determine the initial directory based on the global default_file_directory
+    initial_dir = default_file_directory if default_file_directory and default_file_directory.is_dir() else Path.home()
+    log_message(f"Using initial directory for file dialog: {initial_dir}")
+
 
     # Define the types of files the dialog should display
     filetypes = [
@@ -332,10 +471,6 @@ def select_file():
     # This Tk command sets the initial state of the checkbox. 0 hides hidden files, 1 shows them.
     root.tk.setvar('::tk::dialog::file::showHiddenVar', 0)
     # --- End of hidden file settings ---
-
-    # Determine initial directory: current entry text parent, then default source/target dir
-    # In bookfix, we don't have an entry for the file *before* selection, so use start_dir directly
-    initial_dir = start_dir
 
 
     # Open the file selection dialog
@@ -709,7 +844,8 @@ def process_all_caps_sequences_gui():
 def handle_caps_choice(choice):
     """
     Handles the user's selection for an all-caps sequence (y/n/a/i).
-    Applies changes, updates data sets, saves data file, and signals the main loop.
+    Adds to data sets, saves data file, and signals the main loop.
+    Does NOT modify text here; text modification happens in process_all_caps_sequences_gui Pass 1 and 2.
     """
     global text, ignore_set, lowercase_set, choice_var, \
            current_caps_sequence, current_caps_span, text_area, \
@@ -1092,7 +1228,7 @@ def run_processing():
 def start_processing_button_command():
     """
     Command to be executed when the 'Start Processing' button is clicked.
-    Initiates the main processing workflow.
+    Initiates the main text processing workflow.
     """
     global start_processing_button, text_area, text # Need global text_area and text here
 
@@ -1196,18 +1332,51 @@ if __name__ == "__main__":
 
     log_message("Bookfix GUI application started.")
 
-    # Initialize BooleanVars for processing steps (pre-checked by default)
-    process_choices_var = BooleanVar(value=True)
-    apply_replacements_var = BooleanVar(value=True)
-    insert_periods_var = BooleanVar(value=True) # Keep as True even if function is commented
-    remove_pagination_var = BooleanVar(value=True)
-    convert_roman_var = BooleanVar(value=True)
-    convert_lowercase_var = BooleanVar(value=True)
-    process_all_caps_var = BooleanVar(value=True) # New checkbox variable
+    # Load data from .data.txt first, which includes the default directory
+    load_data_file()
+
+    # Check if a default directory was loaded and is valid
+    if default_file_directory is None or not default_file_directory.is_dir():
+         log_message("No valid default file directory found. Prompting user to select one.")
+
+         # --- Display message box before asking for directory ---
+         messagebox.showinfo(
+             "Set Default Directory",
+             "A default directory for the file dialog has not been set or is invalid.\n\n"
+             "For best use, please select a default directory now.\n\n"
+             "Click OK to select a directory."
+         )
+         # --- End message box ---
+
+         # Prompt the user to select a default directory
+         initial_prompt_dir = Path.home() # Start the directory dialog in the user's home
+         selected_default_dir_path = filedialog.askdirectory(
+              title="Select Default Directory for File Dialog",
+              initialdir=str(initial_prompt_dir)
+         )
+
+         if selected_default_dir_path:
+              # If user selected a directory, set it as the default and save it
+              default_file_directory = Path(selected_default_dir_path).resolve()
+              log_message(f"User selected default directory: {default_file_directory}")
+              save_default_directory_to_data_file(default_file_directory) # Save the selected path
+
+              # --- Display confirmation message box ---
+              messagebox.showinfo(
+                  "Default Directory Set",
+                  f"Default directory set to:\n{default_file_directory}\n\n"
+                  "Click OK to proceed to file selection."
+              )
+              # --- End confirmation message box ---
+
+         else:
+              # If user cancelled the default directory selection, exit
+              log_message("Default directory selection cancelled. Exiting.", level="INFO")
+              quit_program() # Exit gracefully
 
 
-    # Call the function to open the file selection dialog.
-    # This function now has access to 'root' created just above.
+    # Now that default_file_directory is established (either loaded or selected),
+    # proceed to file selection using this default.
     filepath = select_file()
 
     # Check if a file was successfully selected (user didn't cancel)
@@ -1226,8 +1395,15 @@ if __name__ == "__main__":
             quit_program() # Or implement a 'Load New File' option
             sys.exit(1) # Exit script
 
-        # Load replacement data from the data file (includes original and new caps data)
-        load_data_file()
+
+        # Initialize BooleanVars for processing steps (pre-checked by default)
+        process_choices_var = BooleanVar(value=True)
+        apply_replacements_var = BooleanVar(value=True)
+        insert_periods_var = BooleanVar(value=True) # Keep as True even if function is commented
+        remove_pagination_var = BooleanVar(value=True)
+        convert_roman_var = BooleanVar(value=True)
+        convert_lowercase_var = BooleanVar(value=True)
+        process_all_caps_var = BooleanVar(value=True) # New checkbox variable
 
 
         # Frame to hold the processing step checkboxes
@@ -1277,7 +1453,7 @@ if __name__ == "__main__":
         save_button = tk.Button(button_frame, text="Save", command=save_file)
         # save_button.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True) # Don't pack here, display_save_button does this later
 
-        # An empty frame used as a spacer to push buttons apart
+        # An empty frame used as a spacer to push Save and Quit buttons apart
         empty_frame = tk.Frame(button_frame)
         empty_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
@@ -1301,8 +1477,8 @@ if __name__ == "__main__":
         log_message("Starting Tkinter main loop.")
         root.mainloop()
     else:
-        # If no file was selected in the dialog
-        log_message("No file selected. Exiting.", level="INFO") # Use stderr
+        # If no file was selected in the dialog (after default dir is established)
+        log_message("No file selected after default directory established. Exiting.", level="INFO") # Use stderr
         # Destroy the root window that was created (it's an empty window if mainloop wasn't called)
         # Check if root exists before destroying
         if 'root' in globals() and root:
