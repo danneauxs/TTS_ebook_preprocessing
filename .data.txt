@@ -1,12 +1,7 @@
-# Manually edit this file to add or remove from each section.
+# this is the default dir to start the program in. If blank the program will ask you to set it and provice a broswer window to select the direcotry. once set you are done.
 
+# DEFAULT_FILE_DIR
 
-# Here you can add for period replacement.  This function is commented out in the code. To reenable it just uncomment the line.
-# Some other/earlier TTS tried to pronouce AI for instance.  eb2ab does not like periods.  c.e.o has long pauses between the letter and # the voice drags when pronouning each subsequent letter.  It does fine with CEO or ceo. Kokoro on the the other hand will take all
-# 3 variants and not stutter.
-# One reason it was kept is that bookfix converts everything to lowercase.  At the time of creation I was working with a lot of books
-# that had ALL CAPS for emphasis and even entire sentences in caps. I'm not sure how that effects eb2ab, but koroko doesn't seem to notice.
-# As this code has evolved though differenet tts engines some is no longer relevant. You decide.
 # PERIODS
 AI
 AM
@@ -224,11 +219,9 @@ contest -> CONtest ; Cuntest
 
 
 # UPPER_TO_LOWER
-NASA
 HUD
+NASA
 NAV
-
-
 # CAP_IGNORE
 AI
 AIDS
@@ -236,6 +229,7 @@ ASAP
 AWOL
 COVID
 DARPA
+DC
 EVA
 FTL
 GQ
