@@ -68,4 +68,6 @@ In essence, the tool provides a structured workflow to take raw text, apply both
 1. made some changes to bookfix.py
       1. added a checkbox that allows user to selectively run each function.
       2. added a seperate process to find words or stings of words in all caps and offers the user the choices of y/n/a/i. Yes makes the highlighted string lowercase, No leaves it all caps, Add enters the word in the .data.txt file, leaves it all caps and will never ask again. Ignore,             makes the string lowercase and adds the string to the .data.txt file so it will forever be converted to lowercase.  Add and Ignore mean you will never be asked about this string again. No and yes will just skip that one instance and ask again if ever encountered.
+      3. addes a default folder selection dialogue. This is the folder where the ptrogam initiall opens the select file dialogue.  This dialogue is where the user select the text file to process.  If you use Calibre it's best to set the Calibre Library folder. Or just a folder where you          keep your ebook convrted text files.
 2. made changes to .data.txt - changes make it work with the new code in bookfix.py. Also, added some comments to try and define what each section is.
+      1. added a section for the default start dir.
