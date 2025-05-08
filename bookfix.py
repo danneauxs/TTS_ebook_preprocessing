@@ -1018,7 +1018,7 @@ def convert_roman_numerals():
     # Iterate through each line
     for line in lines:
         # Define the regex pattern for finding Roman numerals (same as in roman_to_arabic)
-        roman_regex = r'\bM{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\b'
+        roman_regex = r'(?<![\w\'’])(?=[MDCLXVI]+\b)(?![A-Z])([MDCLXVI]+)\b(?![\w\'’])' # Improved regex (for context)
         # Find all potential Roman numerals (uppercase and matching pattern) and their positions
         roman_numerals = [(match.group(0), match.span()) for match in re.finditer(roman_regex, line) if match.group(0).isupper()]
 
@@ -1137,6 +1137,7 @@ def run_processing():
     # --- Processing Steps (Conditional based on Checkboxes) ---
     # Ordered according to the checkboxes in the GUI
 
+
     # 1. Interactive Choices (Original Bookfix)
     if process_choices_var.get():
         log_message("Checkbox 'Interactive Choices' is checked. Executing process_choices().")
@@ -1182,6 +1183,15 @@ def run_processing():
     else:
         log_message("Checkbox 'Remove Pagination' is NOT checked. Skipping remove_pagination().")
 
+    # 7. Process All-Caps Sequences (Integrated from caps.py) - Runs LAST
+    if process_all_caps_var.get():
+        log_message("Checkbox 'Process All-Caps Sequences' is checked. Executing process_all_caps_sequences_gui().")
+        update_status_label("Starting all-caps processing...")
+        process_all_caps_sequences_gui()
+        log_message("process_all_caps_sequences_gui() finished.")
+        # process_all_caps_sequences_gui updates the global 'text' variable and text_area
+    else:
+        log_message("Checkbox 'Process All-Caps Sequences' is NOT checked. Skipping process_all_caps_sequences_gui().")
 
     # 5. Convert Roman Numerals
     if convert_roman_var.get():
@@ -1205,15 +1215,6 @@ def run_processing():
         log_message("Checkbox 'Convert to Lowercase' is NOT checked. Skipping convert_to_lowercase().")
 
 
-    # 7. Process All-Caps Sequences (Integrated from caps.py) - Runs LAST
-    if process_all_caps_var.get():
-        log_message("Checkbox 'Process All-Caps Sequences' is checked. Executing process_all_caps_sequences_gui().")
-        update_status_label("Starting all-caps processing...")
-        process_all_caps_sequences_gui()
-        log_message("process_all_caps_sequences_gui() finished.")
-        # process_all_caps_sequences_gui updates the global 'text' variable and text_area
-    else:
-        log_message("Checkbox 'Process All-Caps Sequences' is NOT checked. Skipping process_all_caps_sequences_gui().")
 
 
     # --- End Processing Steps ---
@@ -1342,8 +1343,9 @@ if __name__ == "__main__":
          # --- Display message box before asking for directory ---
          messagebox.showinfo(
              "Set Default Directory",
-             "A default directory for the file dialog has not been set or is invalid.\n\n"
+             "A default start directory for the file dialog has not been set or is invalid.\n\n"
              "For best use, please select a default directory now.\n\n"
+             "Your Calibre Library folder is best, OR a folder you keep your ebook text files.\n\n"
              "Click OK to select a directory."
          )
          # --- End message box ---
