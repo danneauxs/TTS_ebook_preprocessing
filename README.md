@@ -1,3 +1,4 @@
+
 # TTS Ebook Preprocessing Tool (bookfix.py)
 
 This is a small Python program designed to help preprocess ebook text files to fix common issues before using them for text-to-speech (TTS) or other applications. It provides a graphical interface to guide the user through interactive decisions and apply automatic cleanup rules.
@@ -17,57 +18,131 @@ The program guides the user through making decisions for specific words and then
 
 ## How it Works:
 
-### Program Flow and GUI
+Key Features
 
-1.  The script starts by importing necessary libraries (**tkinter**, **re**, **os**, **BeautifulSoup**, etc.) for GUI creation, text processing, and file handling.
-2.  The **`main()`** function is the program's starting point. It begins by creating the main Tkinter window.
-3.  Before displaying the main processing interface, the **`select_file()`** function is called to open a file dialog. This allows the user to choose the input file. The dialog includes options to show hidden files.
-4.  If a file is chosen, **`main()`** sets up the core GUI elements: a large text area (**`text_area`**) for displaying and interacting with the text, a status label (**`status_label`**) for user feedback, a frame (**`choice_frame`**) to hold replacement buttons, and a button frame for general actions like "Save" and "Quit".
+* .data.txt file contains sections for data relating to certain functions below.  Simple text file which user may edit to add, change or delete entries. Simple format and intuitive.
 
-### Data Loading and Rules
+* File selection window is opened at start up allowing user to select text file for processing.
 
-1.  Inside the **`run_processing()`** function (which is called by **`main()`** after file selection), the content of the input file is read.
-2.  The **`load_data_file()`** function is then executed. It reads rules from a local data file named **`.data.txt`**, which must be in the same directory as the script.
-3.  This **`.data.txt`** file is structured into sections using lines starting with `#`:
-    * **`#CHOICE`**: Lists words or phrases for which the program should pause and present the user with predefined replacement options.
-    * **`#REPLACE`**: Defines simple find-and-replace rules that are applied automatically.
-    * **`#PERIODS`**: Specifies abbreviations (like "Mr") that should have periods automatically inserted (e.g., "M.r.").
-4.  The function parses these sections and returns the rules as Python dictionaries and sets.
+* Main window is launched and user can select by checkbox which functions to trigger when Process button is clicked.  List of functions:
 
-### Interactive Choice Processing
+* Interactive Choices: Prompts the user to select replacements for specific words defined in the data file. (i.e. read, user can choose reed or red) 
 
-1.  After loading rules, **`run_processing()`** calls **`process_choices()`**. This function handles the interactive cleanup.
-2.  It iterates through each item listed in the **`#CHOICE`** section of the **`.data.txt`** file.
-3.  For the current word needing a choice, **`update_matches()`** finds all occurrences in the text using regular expressions.
-4.  **`highlight_current_match()`** then highlights the first occurrence in the GUI's text area and scrolls it into view.
-5.  **`update_choice_buttons()`** creates specific buttons in the **`choice_frame`**, each representing a possible replacement option from the **`.data.txt`** file.
-6.  The program pauses, waiting for the user to click a choice button.
-7.  The **`handle_choice()`** function is triggered by a button click. It replaces the currently highlighted word with the chosen option, updates the text area, moves to the next match, and logs the decision to **`debug.txt`**.
-8.  Once all instances of a particular word from the **`#CHOICE`** list are processed, the function moves to the next word in the list. A progress bar shows the overall progress through this interactive phase.
+* Automatic Replacements: Applies bulk find-and-replace rules. Replaces 3rd with third, Dr. with doctor, .45 with 45 (pistol) etc) 
 
-### Automatic Processing
+* Pagination Removal: Strips page numbers from TXT and HTML (.xhtml/.html) files. Page numbers are defines as mumbers on a line by themselves.  Keeps numbers from being read outloud by TTS.
 
-1.  After all interactive choices are completed, **`run_processing()`** executes several functions for automatic text cleanup:
-    * **`apply_automatic_replacements()`**: Performs all simple find-and-replace operations defined in the **`#REPLACE`** section.
-    * **`remove_pagination()`**: Attempts to identify and remove common page number patterns. It uses **BeautifulSoup** for HTML/XHTML files and simpler checks for TXT files. Removed items are logged to **`pagination_debug.txt`**.
-    * **`convert_roman_numerals()`**: Finds uppercase Roman numerals in the text and converts them to their Arabic integer equivalents, skipping certain cases like a single "I" or numerals next to punctuation.
-    * **`convert_to_lowercase()`**: Converts the entire text content to lowercase.
-    * (Note: The **`insert_periods_into_abbreviations()`** function exists but is currently commented out in the script).
+* Roman Numeral Conversion: Converts uppercase Roman numerals to Arabic numerals.  Search for valid strings of Roman numeral and converts them to common modern numerals.  Avoide converting I when it used as a personal pronoun.
 
-### Output and Exit
+* All-Caps Sequence Processing: Detects sequences of uppercase words such as STOP which might be spelled out instead of pronounced with empahasis.  User can select YES: changes word to lower case, No: leave it alone, Auto: Changes word to lowercase and all instances of it in document to
+  lowercase. Further adds word to .data.txt so it's found and coverted prior to interactive query running - User only ever has to answer query about this word once.  All subsequent files will have it automatically converted. IGNOR: Leaves word unchanged, skips any other occurance of
+  word in document. Adds word to .data.txt so it will never be queried again.
 
-1.  After all processing is complete, **`update_text_area()`** refreshes the display to show the final text, and **`update_status_label()`** is updated.
-2.  The **`display_save_button()`** makes the "Save" button visible.
-3.  Clicking the "Save" button calls the **`save_file()`** function, which writes the final processed text to a new file (e.g., `original_filename_output.txt`) in the same directory as the input file.
-4.  The "Quit" button calls the **`quit_program()`** function to close the GUI and exit the script.
+* Blank Line Cleanup: Optionally removes empty or whitespace-only lines. Might help improve pauses or strange vocalizations.
 
-In essence, the tool provides a structured workflow to take raw text, apply both manual and automated corrections based on external rules, and produce a cleaned output file.
+* Logging: Detailed timestamped logging to both stderr and an execution log file (bookfix_execution.log).
+
+## Function Reference
+
+Below is an enumeration of the main functions in the application, with brief descriptions of their responsibilities.
+
+* center_window(win)
+
+Centers a given Tk window on screen.
+
+* log_message(message, level)
+
+Writes timestamped log entries to stderr and a log file, flushing immediately.
+
+* load_data_file()
+
+Manually parses .data.txt into sections: choices, replacements, periods, default directory, ignore, uppercase-to-lowercase.
+
+* save_default_directory_to_data_file(dir)
+
+Updates or creates the # DEFAULT_FILE_DIR section in .data.txt.
+
+* save_caps_data_file(ignore, lowercase)
+
+Updates # CAP_IGNORE and # UPPER_TO_LOWER sections in .data.txt.
+
+* select_file()
+
+Opens a file dialog for selecting an input file, respecting the default directory.
+
+* process_choices()
+
+Interactive find-and-replace according to choices rules, with progress bar.
+
+* highlight_current_match()
+
+Highlights the next match in the text area for user confirmation.
+
+* handle_caps_choice(choice)
+
+Handles user input (y/n/a/i) for all-caps sequences: lowercase now, ignore, or auto-lowercase across the document and persist rules.
+
+* process_all_caps_sequences_gui()
+
+Two-pass processing of all-caps sequences: automatic pass based on persistent rules, then interactive pass with buttons and keyboard shortcuts.
+
+* apply_automatic_replacements()
+
+Performs simple string replacements defined under # REPLACE.
+
+* insert_periods_into_abbreviations()
+
+Inserts dots into abbreviations defined under # PERIODS.
+
+* convert_to_lowercase()
+
+Converts the entire text buffer to lowercase.
+
+* roman_to_arabic(roman)
+
+Converts a single Roman numeral string to its integer equivalent, validating format.
+
+* convert_roman_numerals()
+
+Finds and replaces Roman numerals in the text with Arabic numbers, line by line.
+
+* remove_pagination()
+
+Detects and removes pagination elements in TXT and HTML files, logs removed items.
+
+* remove_blank_lines(text)
+
+Returns text with empty or whitespace-only lines removed.
+
+* run_processing()
+
+Orchestrates the full workflow based on checkbox states, including interactive and automatic steps, and displays the Save button.
+
+* start_processing_button_command()
+
+Disables the Start button, resets UI, clears old logs, and invokes run_processing().
+
+* update_text_area()
+
+Refreshes the displayed text to match the in-memory text variable.
+
+* update_status_label(msg)
+
+Updates the status label text in the GUI.
+
+* save_file()
+
+Saves the processed text to a new file with an _output.txt suffix.
+
+* display_save_button()
+
+Makes the Save button visible after processing.
+
+* quit_program()
+
+Exits the application cleanly.# TTS Ebook Preprocessing Tool (bookfix.py)
 
 
-### Change Log
-1. made some changes to bookfix.py
-      1. added a checkbox that allows user to selectively run each function.
-      2. added a seperate process to find words or stings of words in all caps and offers the user the choices of y/n/a/i. Yes makes the highlighted string lowercase, No leaves it all caps, Add enters the word in the .data.txt file, leaves it all caps and will never ask again. Ignore,             makes the string lowercase and adds the string to the .data.txt file so it will forever be converted to lowercase.  Add and Ignore mean you will never be asked about this string again. No and yes will just skip that one instance and ask again if ever encountered.
-      3. addes a default folder selection dialogue. This is the folder where the ptrogam initiall opens the select file dialogue.  This dialogue is where the user select the text file to process.  If you use Calibre it's best to set the Calibre Library folder. Or just a folder where you          keep your ebook convrted text files.
-2. made changes to .data.txt - changes make it work with the new code in bookfix.py. Also, added some comments to try and define what each section is.
-      1. added a section for the default start dir.
+
+
+
