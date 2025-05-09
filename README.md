@@ -42,6 +42,12 @@ Key Features
 
 * Logging: Detailed timestamped logging to both stderr and an execution log file (bookfix_execution.log).
 
+![Screenshot of the application](images/selctfile.png)
+
+
+![Screenshot of the application](images/mainwindow.png)
+
+![Screenshot of the application](images/interactive.png)
 ## Function Reference
 
 Below is an enumeration of the main functions in the application, with brief descriptions of their responsibilities.
