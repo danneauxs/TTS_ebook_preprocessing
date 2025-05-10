@@ -22,11 +22,11 @@
 # Added file.flush() in log_message for immediate writing to log file.
 # Implemented loading default directory from .data.txt and GUI prompt/save if not found.
 # Added message boxes for prompting and confirming default directory selection.
-# Last generated: 05-01-25 18:05
+# fixed many issues: all caps, blank lines, cosmetice gui changes. 
+# Last generated: 05-09-25 22:30
 
 import tkinter as tk # Import the Tkinter library for creating the GUI
 from tkinter import messagebox, filedialog, ttk # Import specific modules, including ttk
-import re # Import the regular expression module for text pattern matching
 import os # Import the os module for interacting with the operating system (file paths, etc.)
 import sys # Import the sys module for system-specific parameters and functions (like stderr)
 from bs4 import BeautifulSoup # Import BeautifulSoup for parsing HTML/XML content
@@ -35,6 +35,9 @@ from tkinter.ttk import Progressbar # Import Progressbar for showing processing 
 from tkinter import BooleanVar # Import BooleanVar for checkboxes
 import datetime # Import datetime for timestamps in logs
 from pathlib import Path # Use pathlib for easier path manipulation
+import re # Import the regular expression module for text pattern matching
+
+
 
 # --- Global Variables (used across functions) ---
 text_area = None
@@ -77,6 +80,23 @@ remove_pagination_var = None # Original bookfix checkbox
 convert_roman_var = None # Original bookfix checkbox
 convert_lowercase_var = None # Original bookfix checkbox
 process_all_caps_var = None # New checkbox for all-caps processing
+    # New checkbox variable for blank-line removal
+remove_blank_lines_var = None
+
+# ---- Center main window on screen ---
+def center_window(win):
+    """
+    Centers the given Tk window on the screen.
+    """
+    win.update_idletasks()   # make sure winfo_width/height are up to date
+    w = win.winfo_width()
+    h = win.winfo_height()
+    sw = win.winfo_screenwidth()
+    sh = win.winfo_screenheight()
+    x = (sw // 2) - (w // 2)
+    y = (sh // 2) - (h // 2)
+    win.geometry(f"{w}x{h}+{x}+{y}")
+
 
 # --- Logging Function ---
 def log_message(message, level="INFO"):
@@ -615,47 +635,109 @@ def highlight_current_match():
         # If no more matches for the current word, update status
         status_label.config(text=f"Finished {current_word}") # More specific status
 
-
 def handle_choice(choice):
     """
-    Handles the user's selection of a replacement option for original choices.
-    Replaces the current match in the text area, updates the match index,
-    and signals the main loop to continue.
+    Handles the user's selection of a replacement option.
+    Replaces the current match in the text area, logs it, refinds matches,
+    and signals process_choices() to continue.
     """
     global text_area, current_match, matches, choice_var, text, current_word
 
     log_message(f"Handling choice '{choice}' for '{current_word}' (Match {current_match + 1})")
 
-    # Ensure there is a valid match to process
     if matches and current_match < len(matches):
-        start, end = matches[current_match].span() # Get the indices of the current match
-
-        # Replace the text directly in the text area
+        start, end = matches[current_match].span()
         text_area.delete(f"1.0+{start}c", f"1.0+{end}c")
         text_area.insert(f"1.0+{start}c", choice)
 
-        # Update the underlying text variable (important for subsequent processing steps)
-        # This is less efficient than modifying the text variable directly, but necessary
-        # to ensure the text area and variable are in sync after interactive edits.
+        # Sync the global text buffer
         text = text_area.get("1.0", tk.END).strip()
 
-        # Log the replacement made to a debug file
-        with open('debug.txt', 'a', encoding="utf-8") as debug_file:
+        # Log to debug.txt
+        with open('debug.txt', 'a', encoding='utf-8') as debug_file:
             debug_file.write(f"{current_word} -> {choice}\n")
-        log_message(f"Logged choice: {current_word} -> {choice}")
+        log_message(f"Logged choice: {current_word} -> {choice}")  # :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+
+        # Re-find matches in the updated text
+        matches[:] = list(re.finditer(r'\b' + re.escape(current_word) + r'\b', text, re.IGNORECASE))
+
+        current_match += 1
+        # Release the wait in process_choices()
+        choice_var.set(choice_var.get() + 1)
 
 
-        # Re-find matches for the current word in the *updated* text
-        # This is crucial because the text area was modified, potentially changing indices.
-        # Using the same regex as in process_choices
-        updated_matches = list(re.finditer(r'\b' + re.escape(current_word) + r'\b', text, re.IGNORECASE))
-        matches = updated_matches # Update the global matches list
+def handle_caps_choice(choice):
+    """
+    Handles the user's selection for an all‑caps sequence (y/n/a/i).
+    choice is one of: "y"/"yes", "n"/"no", "a"/"add", "i"/"auto"
+    """
+    global text, ignore_set, lowercase_set, choice_var
+    global current_caps_sequence, current_caps_span, text_area
+    global decided_sequences_text, lowercased_original_spans, all_caps_matches_original
 
+    # 0) Sentinel to confirm we hit this patched function
+    log_message(f"[PATCH ACTIVE] handle_caps_choice() got choice={choice!r}", level="DEBUG")
 
-        current_match += 1 # Move to the next match index
+    seq = current_caps_sequence                     # e.g. "CHAPTER"
+    start_pos, end_pos = current_caps_span          # widget offsets
 
-        # Signal the main loop to continue
-        choice_var.set(choice_var.get() + 1) # Incrementing signals change
+    # 1) Find the original span we’re working on
+    original_span = None
+    for m in all_caps_matches_original:
+        if m.group(0) == seq and m.span() not in lowercased_original_spans:
+            original_span = m.span()
+            break
+
+    # 2) Prepare the regex for whole‑word matching
+    pattern = re.compile(r'\b' + re.escape(seq) + r'\b')
+
+    # --- Handle each button ---
+    if choice.lower() in ('y', 'yes'):
+        # YES: lowercase just this instance, record its span
+        text_area.delete(f"1.0+{start_pos}c", f"1.0+{end_pos}c")
+        text_area.insert(f"1.0+{start_pos}c", seq.lower())
+        text = text_area.get("1.0", tk.END).strip()
+        if original_span:
+            lowercased_original_spans.add(original_span)
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('n', 'no'):
+        # NO: leave uppercase, skip it for the rest of this session
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('a', 'add'):
+        # ADD TO IGNORE: persist and never prompt on this word again
+        log_message(f"Adding '{seq}' to ignore list.", level="DEBUG")
+        ignore_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('i', 'auto'):
+        # AUTO LOWERCASE: persist, then bulk‑lowercase EVERY instance now
+        log_message(f"Adding '{seq}' to auto‑lowercase list.", level="DEBUG")
+        lowercase_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+
+        # Bulk‑lowercase _all_ persisted sequences in the buffer
+        for w in lowercase_set:
+            p = re.compile(r'\b' + re.escape(w) + r'\b')
+            text = p.sub(w.lower(), text)
+        update_text_area()
+
+        # Mark all original spans for this seq as done
+        for m in all_caps_matches_original:
+            if m.group(0) == seq:
+                lowercased_original_spans.add(m.span())
+        decided_sequences_text.add(seq)
+
+    else:
+        log_message(f"Unknown choice '{choice}' in handle_caps_choice()", level="WARNING")
+        return
+
+    # 3) Advance to the next prompt
+    choice_var.set(choice_var.get() + 1)
+    log_message(f"Choice handled for '{seq}' → '{choice}'. Moving on.", level="DEBUG")
+
 
 
 # --- All-Caps Sequence Processing Function (Integrated from caps.py) ---
@@ -675,7 +757,7 @@ def process_all_caps_sequences_gui():
     # groups of (one or more non-word characters followed by 2+ uppercase letters).
     # \b ensures word boundaries at the start and end of the *entire* match.
     # This regex captures the full sequence including inter-word non-word characters.
-    sequence_pattern = re.compile(r'\b([A-Z]{2,})(?:(?:\W+)[A-Z]{2,})*\b')
+    sequence_pattern = re.compile(r'\b[A-Z][A-Z ]+[A-Z]\b')
 
     # Find all matches in the current text (after previous processing steps)
     # This must be done ONCE at the beginning of this function
@@ -839,92 +921,6 @@ def process_all_caps_sequences_gui():
     log_message(f"DEBUG: Total interactive all-caps prompts presented: {interactive_prompts_count}")
     log_message("Finished all-caps sequences processing.")
 
-
-# --- Helper Function for All-Caps Choice Handling ---
-def handle_caps_choice(choice):
-    """
-    Handles the user's selection for an all-caps sequence (y/n/a/i).
-    Adds to data sets, saves data file, and signals the main loop.
-    Does NOT modify text here; text modification happens in process_all_caps_sequences_gui Pass 1 and 2.
-    """
-    global text, ignore_set, lowercase_set, choice_var, \
-           current_caps_sequence, current_caps_span, text_area, \
-           decided_sequences_text, lowercased_original_spans, all_caps_matches_original # Need access to these globals
-
-    original_sequence_text = current_caps_sequence
-    current_start_in_text_area, current_end_in_text_area = current_caps_span
-
-    log_message(f"Handling all-caps choice '{choice}' for '{original_sequence_text}' (Current Span: {current_caps_span})")
-
-    # Find the original span of the sequence being processed
-    # This is needed to add to lowercased_original_spans
-    original_span_of_current_sequence = None
-    # Iterate through original matches to find the one corresponding to the current sequence text
-    # and that hasn't been marked as decided yet (to handle multiple occurrences of the same text)
-    # This logic might need refinement if the same sequence text appears multiple times close together
-    # and modifications shift indices significantly. For now, we find the first original match
-    # that hasn't been lowercased.
-    for original_match in all_caps_matches_original:
-         if original_match.group(0) == original_sequence_text and original_match.span() not in lowercased_original_spans:
-              original_span_of_current_sequence = original_match.span()
-              break # Found the relevant original span
-
-
-    if original_span_of_current_sequence is None:
-        log_message(f"Warning: Could not find original span for sequence '{original_sequence_text}'. Cannot track lowercasing accurately.", level="WARNING")
-
-
-    if choice in ['y', 'yes']:
-        log_message(f"Converting '{original_sequence_text}' to lowercase (this instance).")
-        # Apply the lowercase replacement directly in the text area
-        text_area.delete(f"1.0+{current_start_in_text_area}c", f"1.0+{current_end_in_text_area}c")
-        text_area.insert(f"1.0+{current_start_in_text_area}c", original_sequence_text.lower())
-        # Update the underlying text variable
-        text = text_area.get("1.0", tk.END).strip()
-
-        # Mark this specific original span as lowercased interactively
-        if original_span_of_current_sequence:
-             lowercased_original_spans.add(original_span_of_current_sequence)
-             log_message(f"Added original span {original_span_of_current_sequence} to lowercased_original_spans.")
-
-        decided_sequences_text.add(original_sequence_text) # Mark sequence text as decided
-
-
-    elif choice in ['n', 'no']:
-        log_message(f"Keeping sequence '{original_sequence_text}' as is (this instance).")
-        # No change to text area or text variable needed.
-        decided_sequences_text.add(original_sequence_text) # Mark sequence text as decided
-
-
-    elif choice in ['a', 'add']:
-        log_message(f"Adding '{original_sequence_text}' to ignore list.")
-        ignore_set.add(original_sequence_text) # Add to in-memory ignore set
-        save_caps_data_file(ignore_set, lowercase_set) # Save updated data file
-        # No change to text area or text variable needed for 'a'.
-        decided_sequences_text.add(original_sequence_text) # Mark sequence text as decided
-
-
-    elif choice in ['i', 'ignore']: # Using 'i' for add to lowercase as per user prompt
-        log_message(f"Adding '{original_sequence_text}' to automatic lowercase list.")
-        lowercase_set.add(original_sequence_text) # Add to in-memory lowercase set
-        save_caps_data_file(ignore_set, lowercase_set) # Save updated data file
-        # Apply the lowercase replacement directly in the text area
-        text_area.delete(f"1.0+{current_start_in_text_area}c", f"1.0+{current_end_in_text_area}c")
-        text_area.insert(f"1.0+{current_start_in_text_area}c", original_sequence_text.lower())
-        # Update the underlying text variable
-        text = text_area.get("1.0", tk.END).strip()
-
-        # Mark this specific original span as lowercased interactively
-        if original_span_of_current_sequence:
-             lowercased_original_spans.add(original_span_of_current_sequence)
-             log_message(f"Added original span {original_span_of_current_sequence} to lowercased_original_spans.")
-
-        decided_sequences_text.add(original_sequence_text) # Mark sequence text as decided
-
-
-    # Signal the main loop to continue
-    choice_var.set(choice_var.get() + 1) # Incrementing signals change
-    log_message(f"Choice handled. Signaling next step. choice_var = {choice_var.get()}")
 
 
 # --- Automatic Text Processing Functions (Original Bookfix) ---
@@ -1109,6 +1105,19 @@ def remove_pagination():
 
     log_message("Finished removing pagination.")
 
+# --- Remove blank lines from doucment
+
+def remove_blank_lines(text_content):
+    """Removes blank lines (including lines with only whitespace) from the text content."""
+    log_message("Removing blank lines...")
+    # Split the text into lines
+    lines = text_content.splitlines()
+    # Filter out lines that are empty or contain only whitespace
+    non_blank_lines = [line for line in lines if line.strip()]
+    # Join the remaining lines back together with newline characters
+    cleaned_text = "\n".join(non_blank_lines)
+    log_message("Blank line removal complete.")
+    return cleaned_text
 
 # --- Main Processing Workflow ---
 def run_processing():
@@ -1183,7 +1192,7 @@ def run_processing():
     else:
         log_message("Checkbox 'Remove Pagination' is NOT checked. Skipping remove_pagination().")
 
-    # 7. Process All-Caps Sequences (Integrated from caps.py) - Runs LAST
+    # 5. Process All-Caps Sequences (Integrated from caps.py) - Runs LAST
     if process_all_caps_var.get():
         log_message("Checkbox 'Process All-Caps Sequences' is checked. Executing process_all_caps_sequences_gui().")
         update_status_label("Starting all-caps processing...")
@@ -1193,7 +1202,7 @@ def run_processing():
     else:
         log_message("Checkbox 'Process All-Caps Sequences' is NOT checked. Skipping process_all_caps_sequences_gui().")
 
-    # 5. Convert Roman Numerals
+    # 6. Convert Roman Numerals
     if convert_roman_var.get():
         log_message("Checkbox 'Convert Roman Numerals' is checked. Executing convert_roman_numerals().")
         update_status_label("Converting Roman numerals...")
@@ -1204,7 +1213,7 @@ def run_processing():
         log_message("Checkbox 'Convert Roman Numerals' is NOT checked. Skipping convert_roman_numerals().")
 
 
-    # 6. Convert to Lowercase
+    # 7. Convert to Lowercase
     if convert_lowercase_var.get():
         log_message("Checkbox 'Convert to Lowercase' is checked. Executing convert_to_lowercase().")
         update_status_label("Converting to lowercase...")
@@ -1214,6 +1223,17 @@ def run_processing():
     else:
         log_message("Checkbox 'Convert to Lowercase' is NOT checked. Skipping convert_to_lowercase().")
 
+    # 8. Remove Blank Lines (should be the very last step)
+    if remove_blank_lines_var.get():
+        log_message("Checkbox 'Remove Blank Lines' is checked. Executing remove_blank_lines().")
+        update_status_label("Removing blank lines...")
+        # call your function and update the global text
+        global text
+        text = remove_blank_lines(text)
+        update_text_area()
+        log_message("remove_blank_lines() finished.")
+    else:
+        log_message("Checkbox 'Remove Blank Lines' is NOT checked. Skipping remove_blank_lines().")
 
 
 
@@ -1222,6 +1242,7 @@ def run_processing():
     # Update the GUI display and status
     log_message("All processing steps checked have finished.")
     update_status_label("Processing complete.") # Update status to "Processing complete"
+    log_message("About to show Save button…")
     display_save_button() # Make the save button available
     log_message("run_processing (dispatch section) finished.")
 
@@ -1307,10 +1328,17 @@ def save_file():
         messagebox.showerror("Error", f"Error saving output: {e}")
 
 def display_save_button():
-    """Makes the save button visible."""
-    global save_button # Need global save_button here
-    log_message("Displaying save button.")
-    save_button.pack(pady=5)
+    """Makes the Save button visible and forces the window to expand."""
+    # Show the Save button alongside Start/Quit
+    save_button.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
+
+    # Flush any pending layout changes
+    save_button.master.update_idletasks()
+
+    # Resize the root window to fit all widgets
+    root.geometry(f"{root.winfo_reqwidth()}x{root.winfo_reqheight()}")
+
+
 
 
 # --- Program Exit Function ---
@@ -1406,6 +1434,7 @@ if __name__ == "__main__":
         convert_roman_var = BooleanVar(value=True)
         convert_lowercase_var = BooleanVar(value=True)
         process_all_caps_var = BooleanVar(value=True) # New checkbox variable
+        remove_blank_lines_var = BooleanVar(value=True)
 
 
         # Frame to hold the processing step checkboxes
@@ -1420,6 +1449,8 @@ if __name__ == "__main__":
         ttk.Checkbutton(processing_options_frame, text="Convert Roman Numerals", variable=convert_roman_var).grid(row=1, column=1, sticky=tk.W, padx=5, pady=2)
         ttk.Checkbutton(processing_options_frame, text="Convert to Lowercase", variable=convert_lowercase_var).grid(row=1, column=2, sticky=tk.W, padx=5, pady=2)
         ttk.Checkbutton(processing_options_frame, text="Process All-Caps Sequences (Last)", variable=process_all_caps_var).grid(row=2, column=0, sticky=tk.W, padx=5, pady=2) # New checkbox
+            # New blank-line removal checkbox
+        ttk.Checkbutton(processing_options_frame, text="Remove Blank Lines", variable=remove_blank_lines_var).grid(row=2, column=1, sticky=tk.W, padx=5, pady=2)
 
         # Configure columns to expand evenly
         processing_options_frame.columnconfigure(0, weight=1)
@@ -1477,7 +1508,9 @@ if __name__ == "__main__":
         # Start the Tkinter event loop. This makes the GUI interactive.
         # The processing workflow will be triggered by the 'Start Processing' button click.
         log_message("Starting Tkinter main loop.")
+        center_window(root)
         root.mainloop()
+
     else:
         # If no file was selected in the dialog (after default dir is established)
         log_message("No file selected after default directory established. Exiting.", level="INFO") # Use stderr
