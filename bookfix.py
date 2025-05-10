@@ -22,8 +22,7 @@
 # Added file.flush() in log_message for immediate writing to log file.
 # Implemented loading default directory from .data.txt and GUI prompt/save if not found.
 # Added message boxes for prompting and confirming default directory selection.
-# fixed many issues: all caps, blank lines, cosmetice gui changes. 
-# Last generated: 05-09-25 22:30
+# Last generated: 05-01-25 18:05
 
 import tkinter as tk # Import the Tkinter library for creating the GUI
 from tkinter import messagebox, filedialog, ttk # Import specific modules, including ttk
@@ -82,6 +81,20 @@ convert_lowercase_var = None # Original bookfix checkbox
 process_all_caps_var = None # New checkbox for all-caps processing
     # New checkbox variable for blank-line removal
 remove_blank_lines_var = None
+
+
+# --- Applies defined upper to lower section of datafile before interactive ---
+def apply_upper_to_lower(text, upper_to_lower):
+    """
+    upper_to_lower is a dict mapping UPPER → lower.
+    We want to lowercase EVERY standalone occurrence of UPPER
+    (even when it’s part of a longer all‑caps phrase).
+    """
+    for up, low in upper_to_lower.items():
+        # \b ensures we replace whole words only
+        pattern = re.compile(rf'\b{re.escape(up)}\b')
+        text = pattern.sub(low, text)
+    return text
 
 # ---- Center main window on screen ---
 def center_window(win):
@@ -700,9 +713,19 @@ def handle_caps_choice(choice):
         if original_span:
             lowercased_original_spans.add(original_span)
         decided_sequences_text.add(seq)
+         # —— Bulk‑lower all remaining instances of this sequence ——
+        bulk_pattern = re.compile(rf'\b{re.escape(seq)}\b')
+        text = bulk_pattern.sub(seq.lower(), text)
+        update_text_area()
+        log_message(f"Bulk‑lowercased all remaining instances of '{seq}'")
+
+        if original_span:
+            lowercased_original_spans.add(original_span)
+        decided_sequences_text.add(seq)
 
     elif choice.lower() in ('n', 'no'):
         # NO: leave uppercase, skip it for the rest of this session
+
         decided_sequences_text.add(seq)
 
     elif choice.lower() in ('a', 'add'):
@@ -751,17 +774,23 @@ def process_all_caps_sequences_gui():
            choice_var, current_caps_sequence, current_caps_span, text_area, status_label, choice_frame, \
            decided_sequences_text, lowercased_original_spans # Declare necessary globals
 
-    log_message("Starting all-caps sequences processing.")
-
     # Regex to find a sequence of 2+ uppercase letters, followed by zero or more
     # groups of (one or more non-word characters followed by 2+ uppercase letters).
     # \b ensures word boundaries at the start and end of the *entire* match.
     # This regex captures the full sequence including inter-word non-word characters.
-    sequence_pattern = re.compile(r'\b[A-Z][A-Z ]+[A-Z]\b')
+    sequence_pattern = re.compile(r'\b[A-Z](?:[A-Z\s]*[A-Z])\b')
+#    sequence_pattern = re.compile(r'\b[A-Z][A-Z ]+[A-Z]\b')
+
 
     # Find all matches in the current text (after previous processing steps)
     # This must be done ONCE at the beginning of this function
     all_caps_matches_original = list(sequence_pattern.finditer(text))
+    # DEBUG: show exactly what sequences were detected
+    log_message(
+        "All‑caps sequences detected: "
+        + ", ".join(m.group(0) for m in all_caps_matches_original)
+    )
+
     log_message(f"DEBUG: Found {len(all_caps_matches_original)} potential all-caps sequences in total.")
 
     # Initialize sets for tracking decisions within this run at the start of processing
@@ -1192,15 +1221,24 @@ def run_processing():
     else:
         log_message("Checkbox 'Remove Pagination' is NOT checked. Skipping remove_pagination().")
 
-    # 5. Process All-Caps Sequences (Integrated from caps.py) - Runs LAST
     if process_all_caps_var.get():
-        log_message("Checkbox 'Process All-Caps Sequences' is checked. Executing process_all_caps_sequences_gui().")
-        update_status_label("Starting all-caps processing...")
+        log_message("Checkbox 'Process All-Caps Sequences' is checked.")
+
+        # ——— Pre‑apply your UPPER_TO_LOWER rules ———
+        update_status_label("Applying auto‑lowercase rules...")
+        if lowercase_set:
+            mapping = { word: word.lower() for word in lowercase_set }
+            text = apply_upper_to_lower(text, mapping)
+            update_text_area()
+            log_message(f"Auto‑lowercased {len(mapping)} words from lowercase_set: {mapping.keys()}")
+
+        # ——— Now run your interactive all‑caps pass ———
+        update_status_label("Starting all‑caps interactive processing...")
         process_all_caps_sequences_gui()
         log_message("process_all_caps_sequences_gui() finished.")
-        # process_all_caps_sequences_gui updates the global 'text' variable and text_area
     else:
         log_message("Checkbox 'Process All-Caps Sequences' is NOT checked. Skipping process_all_caps_sequences_gui().")
+
 
     # 6. Convert Roman Numerals
     if convert_roman_var.get():
@@ -1228,7 +1266,6 @@ def run_processing():
         log_message("Checkbox 'Remove Blank Lines' is checked. Executing remove_blank_lines().")
         update_status_label("Removing blank lines...")
         # call your function and update the global text
-        global text
         text = remove_blank_lines(text)
         update_text_area()
         log_message("remove_blank_lines() finished.")
