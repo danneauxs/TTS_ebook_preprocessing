@@ -49,6 +49,7 @@ choice_var = None # Variable to signal choice handling completion
 start_processing_button = None # New global variable for the start button
 text = "" # Global variable to hold the text content
 log_file_path = "bookfix_execution.log" # Path for the execution log file
+matches = [] # List to hold match objects for the current word
 
 # Data loaded from .data.txt
 choices = {} # Dictionary for interactive word choices (original bookfix)
@@ -82,19 +83,40 @@ process_all_caps_var = None # New checkbox for all-caps processing
     # New checkbox variable for blank-line removal
 remove_blank_lines_var = None
 
+# This is the full code so I know I can simply paste it in
+# --- Helper function for logging match data ---
+def log_matches_state(location):
+    """Logs the state of current_word, current_match, and matches to matches.txt."""
+    print(f"DEBUG: Entering log_matches_state from location: {location}") # Added print statement
+    global current_word, current_match, matches
+    try:
+        with open('matches.txt', 'a', encoding='utf-8') as f:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"--- Log Entry ({timestamp}) ---\n")
+            f.write(f"Location: {location}\n")
+            f.write(f"Current Word: '{current_word}'\n")
+            f.write(f"Current Match Index: {current_match}\n")
+            f.write(f"Total Matches Found: {len(matches)}\n")
+            f.write("Matches Details:\n")
+            if matches:
+                for i, match in enumerate(matches):
+                    # Safely get the matched text, handling potential issues
+                    try:
+                         matched_text = match.group(0)
+                    except IndexError:
+                         matched_text = "[Error getting match text]"
+                         # You might also want to log this error to your main log_file_path
+                         # log_message(f"Error getting match group(0) for match {i} at location {location}", level="WARNING")
 
-# --- Applies defined upper to lower section of datafile before interactive ---
-def apply_upper_to_lower(text, upper_to_lower):
-    """
-    upper_to_lower is a dict mapping UPPER → lower.
-    We want to lowercase EVERY standalone occurrence of UPPER
-    (even when it’s part of a longer all‑caps phrase).
-    """
-    for up, low in upper_to_lower.items():
-        # \b ensures we replace whole words only
-        pattern = re.compile(rf'\b{re.escape(up)}\b')
-        text = pattern.sub(low, text)
-    return text
+                    f.write(f"  Match {i}: Span=({match.start()}, {match.end()}), Text='{matched_text}'\n")
+            else:
+                f.write("  No matches found.\n")
+            f.write("---\n\n")
+    except Exception as e:
+        # You might also want to log this error to your main log_file_path
+        # log_message(f"Error writing to matches.txt: {e}", level="ERROR")
+        print(f"ERROR: Failed to write to matches.txt: {e}") # Added print for the error
+
 
 # ---- Center main window on screen ---
 def center_window(win):
@@ -526,18 +548,22 @@ def select_file():
     return None
 
 # --- Interactive Choice Processing Function (Original Bookfix) ---
+# This is the full code so I know I can simply paste it in
+# Modified process_choices function with logging
 def process_choices():
     """
     Iterates through words loaded from the data file that require a choice.
     For each word found in the text, it highlights the match, presents buttons
     for the user to select the replacement, and updates the text accordingly.
-    Includes a progress bar.
+    Includes a progress bar. Implemented re-searching after each replacement for accurate highlighting.
+    Includes logging to matches.txt.
     """
     global text, choices, current_word, current_match, matches, progress_bar, progress_label, choice_var
     # Declare progress_bar and progress_label as global within this function
     global progress_bar, progress_label
 
-    log_message("Starting interactive choices processing.")
+    # log_message("Starting interactive choices processing.") # Optional: keep for main log
+    # Clearing matches.txt is now handled in start_processing_button_command
 
     # Get the total number of unique words requiring choices to track progress
     total_words = len(choices)
@@ -555,22 +581,31 @@ def process_choices():
 
 
     # Clear the text area and load the current state of the text before starting choices
+    # Ensure text_area contains the current global 'text' content at the start
     text_area.delete("1.0", tk.END)
     text_area.insert("1.0", text)
+    # log_message("Text area synced with global text before starting choices loop.") # Optional: keep for main log
 
 
     # Loop through each word that needs interactive replacement
     for word in choices.keys():
         current_word = word # Set the current word being processed
         current_match = 0 # Reset the match index for the new word
-        # Find all occurrences of the current word in the text
+
+        # Find all occurrences of the current word in the *current* text.
+        # This search happens once per word, at the start of processing that word.
+        # The matches list will be updated dynamically within handle_choice.
         # Use re.finditer to find all matches and store them as a list
         # \b ensures whole word matching
         # re.escape handles special characters in the word
         # re.IGNORECASE makes the search case-insensitive
-        matches = list(re.finditer(r'\b' + re.escape(current_word) + r'\b', text, re.IGNORECASE))
+        matches[:] = list(re.finditer(r'\b' + re.escape(current_word) + r'\b', text, re.IGNORECASE))
 
-        log_message(f"Processing word for choices: '{current_word}' - Found {len(matches)} matches.")
+
+        # log_message(f"Processing word for choices: '{current_word}' - Found {len(matches)} initial matches.") # Optional: keep for main log
+        # Log initial matches state for the word
+        log_matches_state(f"Start_of_word_{current_word}_in_process_choices")
+
 
         # If there are matches for the current word
         if matches:
@@ -584,20 +619,40 @@ def process_choices():
             mono_font = Font(family="Courier New", size=10, weight="bold")
 
             for i, option in enumerate(options):
+                # Use lambda to pass the option value to handle_choice when the button is clicked
                 button = tk.Button(choice_frame, text=option, command=lambda opt=option: handle_choice(opt), bg="blue", fg="white", font=mono_font)
                 button.pack(side=tk.LEFT, padx=5)
                 # Bind number keys (1-9) to the first 9 options
                 if i < 9:
+                     # Use lambda to pass the event and option value to handle_choice
                      root.bind(str(i + 1), lambda event, opt=option: handle_choice(opt))
                      root.bind(f'<KP_{i + 1}>', lambda event, opt=option: handle_choice(opt))
 
 
-            # Process each match for the current word interactively
+            # Start processing the matches for the current word.
+            # Call highlight_current_match *once* before entering the loop to highlight the first match.
+            # Subsequent highlighting is handled within handle_choice after each replacement.
+            if matches: # Double check there are matches before highlighting
+                 highlight_current_match()
+                 # log_message(f"Highlighting initial match for '{current_word}'.") # Optional: keep for main log
+
+
+            # Process each match for the current word interactively.
+            # The loop continues as long as current_match is less than the *current* number of matches.
+            # handle_choice increments current_match and updates the matches list dynamically.
             while current_match < len(matches):
-                log_message(f"Handling match {current_match + 1}/{len(matches)} for '{current_word}'")
-                highlight_current_match() # Highlight the current match
-                # Wait here until a choice is made (handle_choice sets choice_var, releasing the wait)
+                # log_message(f"Waiting for choice for '{current_word}' (Match {current_match + 1}/{len(matches)})") # Optional: keep for main log
+                # Wait here until handle_choice signals completion by setting choice_var
+                choice_var.set(0) # Reset choice_var before waiting
                 root.wait_variable(choice_var)
+                # log_message(f"Choice signal received for '{current_word}'.") # Optional: keep for main log
+
+
+            # After the while loop finishes (all matches for the word are processed or skipped)
+            # log_message(f"Finished all matches for '{current_word}'.") # Optional: keep for main log
+            # Log final state for the word
+            log_matches_state(f"End_of_word_{current_word}_in_process_choices")
+
 
             # Unbind number keys after completing a word's choices
             for i in range(1, 10):
@@ -605,12 +660,14 @@ def process_choices():
                  root.unbind(f'<KP_{i}>')
 
 
-        # Update progress after processing all matches for a word
+        # Update progress after processing all matches for a word (or skipping if no matches)
         processed_words += 1
         progress_percent = int((processed_words / total_words) * 100)
         progress_bar['value'] = progress_percent
         progress_label.config(text=f"Progress: {progress_percent}%")
         root.update_idletasks() # Update the GUI to show the progress change
+        # log_message(f"Progress updated: {processed_words}/{total_words} words processed.") # Optional: keep for main log
+
 
     # Hide the progress bar and label once all words are processed
     progress_bar.pack_forget()
@@ -619,10 +676,14 @@ def process_choices():
     # Clear choice buttons after processing is complete
     for widget in choice_frame.winfo_children():
         widget.destroy()
+    # log_message("Choice buttons cleared.") # Optional: keep for main log
 
-    # Update the main text variable with the changes made
-    text = text_area.get("1.0", tk.END).strip() # Get the current content from the text area
-    log_message("Finished interactive choices processing.")
+    # Update the main text variable with the final changes made (already synced in handle_choice, but good final sync)
+    text = text_area.get("1.0", tk.END).strip() # Ensure final text is synced
+    # log_message("Final text synced from text area to global variable.") # Optional: keep for main log
+
+    # log_message("Finished interactive choices processing.") # Optional: keep for main log
+    status_label.config(text="Interactive choices processing complete.")
 
 
 # --- Helper Functions for Original Choice Processing ---
@@ -648,120 +709,92 @@ def highlight_current_match():
         # If no more matches for the current word, update status
         status_label.config(text=f"Finished {current_word}") # More specific status
 
+# This is the full code so I know I can simply paste it in
+# Modified handle_choice function (text management changed to match bookfixold.py)
 def handle_choice(choice):
     """
     Handles the user's selection of a replacement option.
-    Replaces the current match in the text area, logs it, refinds matches,
-    and signals process_choices() to continue.
+    Modifies the global text string, updates the text area from the string,
+    re-finds matches, logs it, and prepares for the next match or word.
+    Includes logging to matches.txt.
     """
     global text_area, current_match, matches, choice_var, text, current_word
 
-    log_message(f"Handling choice '{choice}' for '{current_word}' (Match {current_match + 1})")
+    # log_message(f"Handling choice '{choice}' for '{current_word}' (Match {current_match + 1})") # Optional: keep for main log
 
+    # Log state before replacement
+    log_matches_state("Before_handle_choice_replacement")
+
+
+    # Check if there is a valid match to process at the current_match index
     if matches and current_match < len(matches):
+        # Get the start and end indices (span) of the current match from the *current* matches list
+        # These are relative to the global 'text' string *before* this replacement is applied
         start, end = matches[current_match].span()
-        text_area.delete(f"1.0+{start}c", f"1.0+{end}c")
-        text_area.insert(f"1.0+{start}c", choice)
 
-        # Sync the global text buffer
-        text = text_area.get("1.0", tk.END).strip()
+        # --- Perform the replacement in the global text string ---
+        # Modify the global text string using slicing
+        text = text[:start] + choice + text[end:] # Modified: Update global text string first
+        # --- End of global text string replacement ---
 
-        # Log to debug.txt
-        with open('debug.txt', 'a', encoding='utf-8') as debug_file:
-            debug_file.write(f"{current_word} -> {choice}\n")
-        log_message(f"Logged choice: {current_word} -> {choice}")  # :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+        # --- Update the text area from the modified global text string ---
+        text_area.delete("1.0", tk.END) # Modified: Clear the entire text area
+        text_area.insert("1.0", text) # Modified: Insert the entire updated text string
+        # --- End of text area update ---
 
-        # Re-find matches in the updated text
-        matches[:] = list(re.finditer(r'\b' + re.escape(current_word) + r'\b', text, re.IGNORECASE))
 
-        current_match += 1
-        # Release the wait in process_choices()
+        # Log the replacement made to debug.txt (assuming debug.txt logging is desired)
+        try:
+            with open('debug.txt', 'a', encoding='utf-8') as debug_file:
+                debug_file.write(f"{current_word} -> {choice}\n")
+            # log_message(f"Logged choice: {current_word} -> {choice}") # Optional: keep for main log
+        except Exception as e:
+            # log_message(f"Error writing to debug.txt: {e}", level="ERROR") # Optional: keep for main log
+            pass # Basic error handling
+
+
+        # Re-find *all* matches for the current word in the *updated* global text.
+        # This is the key step to get correct, current positions after the text length might have changed.
+        # Use re.finditer to find all matches and store them as a list
+        # \b ensures whole word matching
+        # re.escape handles special characters in the word
+        # re.IGNORECASE makes the search case-insensitive
+        matches[:] = list(re.finditer(r'\b' + re.escape(current_word) + r'\b', text, re.IGNORECASE)) # Modified: Re-finding matches on updated global text
+        # log_message(f"Re-found {len(matches)} matches for '{current_word}' after replacement.") # Optional: keep for main log
+
+
+        # Move to the next match index *within the potentially new matches list*
+        current_match += 1 # Modified: Incrementing current_match
+
+
+        # Log state after re-finding matches and incrementing current_match
+        log_matches_state("After_handle_choice_replacement_and_refind")
+
+        # Explicitly update the GUI to ensure visual changes are processed before highlighting
+        root.update_idletasks() # Added: Force GUI update
+
+
+        # --- Handle highlighting and signaling ---
+        # If there are more matches for the current word in the updated list, highlight the next one
+        if current_match < len(matches):
+            highlight_current_match() # Call highlight *after* updating matches and index
+            # log_message(f"Highlighting match {current_match + 1} for '{current_word}'.") # Optional: keep for main log
+
+
+        # Signal that a choice has been processed. This releases the root.wait_variable in process_choices.
+        # We increment choice_var to ensure the wait variable state changes, triggering the release.
         choice_var.set(choice_var.get() + 1)
+        # log_message(f"Signaled choice processing complete for '{current_word}'.") # Optional: keep for main log
 
-
-def handle_caps_choice(choice):
-    """
-    Handles the user's selection for an all‑caps sequence (y/n/a/i).
-    choice is one of: "y"/"yes", "n"/"no", "a"/"add", "i"/"auto"
-    """
-    global text, ignore_set, lowercase_set, choice_var
-    global current_caps_sequence, current_caps_span, text_area
-    global decided_sequences_text, lowercased_original_spans, all_caps_matches_original
-
-    # 0) Sentinel to confirm we hit this patched function
-    log_message(f"[PATCH ACTIVE] handle_caps_choice() got choice={choice!r}", level="DEBUG")
-
-    seq = current_caps_sequence                     # e.g. "CHAPTER"
-    start_pos, end_pos = current_caps_span          # widget offsets
-
-    # 1) Find the original span we’re working on
-    original_span = None
-    for m in all_caps_matches_original:
-        if m.group(0) == seq and m.span() not in lowercased_original_spans:
-            original_span = m.span()
-            break
-
-    # 2) Prepare the regex for whole‑word matching
-    pattern = re.compile(r'\b' + re.escape(seq) + r'\b')
-
-    # --- Handle each button ---
-    if choice.lower() in ('y', 'yes'):
-        # YES: lowercase just this instance, record its span
-        text_area.delete(f"1.0+{start_pos}c", f"1.0+{end_pos}c")
-        text_area.insert(f"1.0+{start_pos}c", seq.lower())
-        text = text_area.get("1.0", tk.END).strip()
-        if original_span:
-            lowercased_original_spans.add(original_span)
-        decided_sequences_text.add(seq)
-         # —— Bulk‑lower all remaining instances of this sequence ——
-        bulk_pattern = re.compile(rf'\b{re.escape(seq)}\b')
-        text = bulk_pattern.sub(seq.lower(), text)
-        update_text_area()
-        log_message(f"Bulk‑lowercased all remaining instances of '{seq}'")
-
-        if original_span:
-            lowercased_original_spans.add(original_span)
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('n', 'no'):
-        # NO: leave uppercase, skip it for the rest of this session
-
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('a', 'add'):
-        # ADD TO IGNORE: persist and never prompt on this word again
-        log_message(f"Adding '{seq}' to ignore list.", level="DEBUG")
-        ignore_set.add(seq)
-        save_caps_data_file(ignore_set, lowercase_set)
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('i', 'auto'):
-        # AUTO LOWERCASE: persist, then bulk‑lowercase EVERY instance now
-        log_message(f"Adding '{seq}' to auto‑lowercase list.", level="DEBUG")
-        lowercase_set.add(seq)
-        save_caps_data_file(ignore_set, lowercase_set)
-
-        # Bulk‑lowercase _all_ persisted sequences in the buffer
-        for w in lowercase_set:
-            p = re.compile(r'\b' + re.escape(w) + r'\b')
-            text = p.sub(w.lower(), text)
-        update_text_area()
-
-        # Mark all original spans for this seq as done
-        for m in all_caps_matches_original:
-            if m.group(0) == seq:
-                lowercased_original_spans.add(m.span())
-        decided_sequences_text.add(seq)
 
     else:
-        log_message(f"Unknown choice '{choice}' in handle_caps_choice()", level="WARNING")
-        return
-
-    # 3) Advance to the next prompt
-    choice_var.set(choice_var.get() + 1)
-    log_message(f"Choice handled for '{seq}' → '{choice}'. Moving on.", level="DEBUG")
-
-
+        # If for some reason handle_choice was called without a valid match at the current index,
+        # or if the last match was just processed and current_match is now equal to len(matches),
+        # signal to move on. This condition is also hit after the last match is processed above.
+        # log_message(f"No more valid matches found for '{current_word}' at index {current_match} in handle_choice. Signalling next word/completion.") # Optional: keep for main log
+        # Log state when no valid match is found or after processing the last match
+        log_matches_state("End_of_matches_for_word_in_handle_choice")
+        choice_var.set(choice_var.get() + 1) # Signal to move on
 
 # --- All-Caps Sequence Processing Function (Integrated from caps.py) ---
 def process_all_caps_sequences_gui():
@@ -1284,13 +1317,15 @@ def run_processing():
     log_message("run_processing (dispatch section) finished.")
 
 
+# This is the full code so I know I can simply paste it in
+# Modified start_processing_button_command function (includes moved debug.txt clearing)
 def start_processing_button_command():
     """
     Command to be executed when the 'Start Processing' button is clicked.
-    Initiates the main text processing workflow.
+    Initiates the main text processing workflow and clears log files.
     """
-    global start_processing_button, text_area, text # Need global text_area and text here
-
+    global start_processing_button, text_area, text, log_file_path # Added log_file_path needed for clearing
+    print(f"DEBUG: Current working directory: {os.getcwd()}") # Added to show current directory
     log_message("Start Processing button clicked.")
 
     # Disable the start button while processing is running
@@ -1313,7 +1348,24 @@ def start_processing_button_command():
     except Exception as e:
         log_message(f"Error clearing log file {log_file_path}: {e}", level="ERROR")
 
+    # Clear the debug.txt file at the start of processing a new file
+    # MOVED from __main__ block
+    try:
+        open('debug.txt', 'w').close()
+        log_message("Cleared debug.txt file.")
+    except Exception as e:
+        log_message(f"Error clearing debug.txt file: {e}", level="ERROR")
+
+    # Added: Clear the matches.txt file at the start of processing
+    try:
+        open('matches.txt', 'w', encoding='utf-8').close()
+        log_message("Cleared matches.txt log file.")
+    except Exception as e:
+        log_message(f"Error clearing matches.txt log file: {e}", level="ERROR")
+
+
     log_message("Calling run_processing().")
+    # Assuming run_processing calls process_choices if the checkbox is checked
     run_processing() # Call the main processing function
     log_message("Returned from run_processing().")
 
@@ -1321,7 +1373,6 @@ def start_processing_button_command():
     # Re-enable the start button after processing
     start_processing_button.config(state=tk.NORMAL)
     log_message("Start Processing button re-enabled.")
-
 
 # --- GUI Update Functions ---
 def update_text_area():
@@ -1533,13 +1584,6 @@ if __name__ == "__main__":
 
         # Tkinter variable used to signal when an interactive choice has been handled
         choice_var = tk.IntVar()
-
-        # Clear the debug.txt file at the start of processing a new file
-        try:
-            open('debug.txt', 'w').close()
-            log_message("Cleared debug.txt file.")
-        except Exception as e:
-            log_message(f"Error clearing debug.txt file: {e}", level="ERROR")
 
 
         # Start the Tkinter event loop. This makes the GUI interactive.
