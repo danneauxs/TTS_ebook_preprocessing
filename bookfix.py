@@ -117,6 +117,19 @@ def log_matches_state(location):
         # log_message(f"Error writing to matches.txt: {e}", level="ERROR")
         print(f"ERROR: Failed to write to matches.txt: {e}") # Added print for the error
 
+# --- Applies defined upper to lower section of datafile before interactive ---
+def apply_upper_to_lower(text, upper_to_lower):
+    """
+    upper_to_lower is a dict mapping UPPER → lower.
+    We want to lowercase EVERY standalone occurrence of UPPER
+    (even when it’s part of a longer all‑caps phrase).
+    """
+    for up, low in upper_to_lower.items():
+        # \b ensures we replace whole words only
+        pattern = re.compile(rf'\b{re.escape(up)}\b')
+        text = pattern.sub(low, text)
+    return text
+
 
 # ---- Center main window on screen ---
 def center_window(win):
@@ -627,6 +640,8 @@ def process_choices():
                      # Use lambda to pass the event and option value to handle_choice
                      root.bind(str(i + 1), lambda event, opt=option: handle_choice(opt))
                      root.bind(f'<KP_{i + 1}>', lambda event, opt=option: handle_choice(opt))
+            root.update_idletasks()
+            root.geometry(f"{root.winfo_reqwidth()}x{root.winfo_reqheight()}")
 
 
             # Start processing the matches for the current word.
@@ -796,192 +811,301 @@ def handle_choice(choice):
         log_matches_state("End_of_matches_for_word_in_handle_choice")
         choice_var.set(choice_var.get() + 1) # Signal to move on
 
+
+def handle_caps_choice(choice):
+    """
+    Handles the user's selection for an all‑caps sequence (y/n/a/i).
+    choice is one of: "y"/"yes", "n"/"no", "a"/"add", "i"/"auto"
+    """
+    global text, ignore_set, lowercase_set, choice_var
+    global current_caps_sequence, current_caps_span, text_area
+    global decided_sequences_text, lowercased_original_spans, all_caps_matches_original
+
+    # 0) Sentinel to confirm we hit this patched function
+    log_message(f"[PATCH ACTIVE] handle_caps_choice() got choice={choice!r}", level="DEBUG")
+
+    seq = current_caps_sequence                     # e.g. "CHAPTER"
+    start_pos, end_pos = current_caps_span          # widget offsets
+
+    # 1) Find the original span we’re working on
+    original_span = None
+    for m in all_caps_matches_original:
+        if m.group(0) == seq and m.span() not in lowercased_original_spans:
+            original_span = m.span()
+            break
+
+    # 2) Prepare the regex for whole‑word matching
+    pattern = re.compile(r'\b' + re.escape(seq) + r'\b')
+
+    # --- Handle each button ---
+    if choice.lower() in ('y', 'yes'):
+        # YES: lowercase just this instance, record its span
+        text_area.delete(f"1.0+{start_pos}c", f"1.0+{end_pos}c")
+        text_area.insert(f"1.0+{start_pos}c", seq.lower())
+        text = text_area.get("1.0", tk.END).strip()
+        if original_span:
+            lowercased_original_spans.add(original_span)
+        decided_sequences_text.add(seq)
+         # —— Bulk‑lower all remaining instances of this sequence ——
+        bulk_pattern = re.compile(rf'\b{re.escape(seq)}\b')
+        text = bulk_pattern.sub(seq.lower(), text)
+        update_text_area()
+        log_message(f"Bulk‑lowercased all remaining instances of '{seq}'")
+
+        if original_span:
+            lowercased_original_spans.add(original_span)
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('n', 'no'):
+        # NO: leave uppercase, skip it for the rest of this session
+
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('a', 'add'):
+        # ADD TO IGNORE: persist and never prompt on this word again
+        log_message(f"Adding '{seq}' to ignore list.", level="DEBUG")
+        ignore_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('i', 'auto'):
+        # AUTO LOWERCASE: persist, then bulk‑lowercase EVERY instance now
+        log_message(f"Adding '{seq}' to auto‑lowercase list.", level="DEBUG")
+        lowercase_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+
+        # Bulk‑lowercase _all_ persisted sequences in the buffer
+        for w in lowercase_set:
+            p = re.compile(r'\b' + re.escape(w) + r'\b')
+            text = p.sub(w.lower(), text)
+        update_text_area()
+
+        # Mark all original spans for this seq as done
+        for m in all_caps_matches_original:
+            if m.group(0) == seq:
+                lowercased_original_spans.add(m.span())
+        decided_sequences_text.add(seq)
+
+    else:
+        log_message(f"Unknown choice '{choice}' in handle_caps_choice()", level="WARNING")
+        return
+
+    # 3) Advance to the next prompt
+    choice_var.set(choice_var.get() + 1)
+    log_message(f"Choice handled for '{seq}' → '{choice}'. Moving on.", level="DEBUG")
+
+
+
 # --- All-Caps Sequence Processing Function (Integrated from caps.py) ---
+
+# Updated all-caps sequence processing with inline comments and detailed logging
+
+# Updated all-caps sequence processing with inline comments and detailed logging
+
 def process_all_caps_sequences_gui():
     """
     Finds contiguous sequences of all-caps words (2+ letters),
-    allowing punctuation and spaces between words, performs automatic
-    processing based on data file, then interactive processing using GUI.
+    highlighting each in the GUI and prompting user choices.
     """
     global text, ignore_set, lowercase_set, all_caps_matches_original, \
            choice_var, current_caps_sequence, current_caps_span, text_area, status_label, choice_frame, \
-           decided_sequences_text, lowercased_original_spans # Declare necessary globals
+           decided_sequences_text, lowercased_original_spans
 
-    # Regex to find a sequence of 2+ uppercase letters, followed by zero or more
-    # groups of (one or more non-word characters followed by 2+ uppercase letters).
-    # \b ensures word boundaries at the start and end of the *entire* match.
-    # This regex captures the full sequence including inter-word non-word characters.
-    sequence_pattern = re.compile(r'\b[A-Z](?:[A-Z\s]*[A-Z])\b')
-#    sequence_pattern = re.compile(r'\b[A-Z][A-Z ]+[A-Z]\b')
+    # Log entry
+    log_message("=== Entering process_all_caps_sequences_gui ===", level="DEBUG")
 
+    # 1) Snapshot text for regex detection
+    original_for_detection = text  # keep original for matching only
+    log_message(f"Original text length: {len(original_for_detection)} chars", level="DEBUG")
 
-    # Find all matches in the current text (after previous processing steps)
-    # This must be done ONCE at the beginning of this function
-    all_caps_matches_original = list(sequence_pattern.finditer(text))
-    # DEBUG: show exactly what sequences were detected
+    # 2) Compile regex (no newlines, uppercase & spaces only)
+    sequence_pattern = re.compile(r"\b[A-Z](?:[A-Z ]*[A-Z])\b")
+    log_message(f"Using sequence_pattern: {sequence_pattern.pattern}", level="DEBUG")
+
+    # 3) Detect sequences in the original text
+    all_caps_matches_original = list(sequence_pattern.finditer(original_for_detection))
     log_message(
-        "All‑caps sequences detected: "
-        + ", ".join(m.group(0) for m in all_caps_matches_original)
+        "All-caps sequences detected: " + ", ".join(m.group(0) for m in all_caps_matches_original),
+        level="DEBUG"
     )
 
-    log_message(f"DEBUG: Found {len(all_caps_matches_original)} potential all-caps sequences in total.")
+    # Initialize tracking sets
+    decided_sequences_text = set()
+    lowercased_original_spans = set()
 
-    # Initialize sets for tracking decisions within this run at the start of processing
-    # These need to be re-initialized each time processing starts
-    decided_sequences_text = set() # Set to track sequence texts that have been decided upon (for skipping future occurrences in this run)
-    lowercased_original_spans = set() # Set to track original spans that were lowercased (Pass 1 or Pass 2 'y'/'i')
-    log_message("Initialized decided_sequences_text and lowercased_original_spans for all-caps for this run.")
+    # 4) Pre-pass: auto-lowercase words from lowercase_set in the text buffer
+    log_message("Pre-pass: applying lowercase_set auto-lowercasing", level="DEBUG")
+    working_text = original_for_detection
+    for w in lowercase_set:
+        working_text = re.sub(rf'\b{re.escape(w)}\b', w.lower(), working_text)
 
+    # Update the main text variable to include pre-pass changes
+    text = working_text
 
-    # --- Pass 1: Automatic Lowercasing and Marking for Skipping ---
-    status_label.config(text="Applying automatic all-caps rules...")
-    root.update_idletasks()
-    log_message("Starting Pass 1: Automatic all-caps rules.")
-
-    processed_text_list = list(text) # Start with current text content
-    cumulative_offset = 0 # Total offset from all changes
-
-    # Process original matches in order of appearance for Pass 1
-    for original_match in all_caps_matches_original:
-         original_sequence_text = original_match.group(0)
-         original_start, original_end = original_match.span()
-         original_span = (original_start, original_end)
-
-         if original_sequence_text in lowercase_set:
-             log_message(f"Auto-lowercasing: '{original_sequence_text}' (Span: {original_span})")
-             # Calculate current start/end in the list
-             current_start = original_start + cumulative_offset
-             current_end = original_end + cumulative_offset
-             replacement = list(original_sequence_text.lower())
-             processed_text_list[current_start : current_end] = replacement
-             cumulative_offset += len(replacement) - (original_end - original_start)
-             decided_sequences_text.add(original_sequence_text) # Mark sequence text as decided
-             lowercased_original_spans.add(original_span) # Mark original span as lowercased
-
-         elif original_sequence_text in ignore_set:
-             log_message(f"Auto-ignoring: '{original_sequence_text}' (Span: {original_span})")
-             decided_sequences_text.add(original_sequence_text) # Mark sequence text as decided
-
-    log_message(f"DEBUG: decided_sequences_text after Pass 1: {decided_sequences_text}")
-    log_message(f"DEBUG: lowercased_original_spans after Pass 1: {lowercased_original_spans}")
-
-
-    # Update the main text variable and text area with Pass 1 changes
-    text = "".join(processed_text_list)
+    # Initialize the text area with the current text
     text_area.delete("1.0", tk.END)
     text_area.insert("1.0", text)
-    log_message("Finished Pass 1: Automatic all-caps rules. Text updated.")
+    log_message("Text area initialized with current text", level="DEBUG")
 
-
-    # --- Pass 2: Interactive Processing ---
-    status_label.config(text="Starting interactive all-caps processing...")
+    # 5) Prepare the UI
+    status_label.config(text="Processing All-Caps sequences...")
     root.update_idletasks()
-    log_message("Starting Pass 2: Interactive all-caps processing.")
 
-    # Clear any existing buttons from the choice frame
+    # Clear old buttons
     for widget in choice_frame.winfo_children():
         widget.destroy()
+    log_message("Cleared old choice buttons", level="DEBUG")
 
-    # Create the Y/N/A/I buttons for all-caps processing
-    # Use a lambda to capture the choice value when the button is created
-    tk.Button(choice_frame, text="Yes (y)", command=lambda: handle_caps_choice('y')).pack(side=tk.LEFT, padx=5)
-    tk.Button(choice_frame, text="No (n)", command=lambda: handle_caps_choice('n')).pack(side=tk.LEFT, padx=5)
+    # Create choice buttons
+    tk.Button(choice_frame, text="Yes (y)",    command=lambda: handle_caps_choice('y')).pack(side=tk.LEFT, padx=5)
+    tk.Button(choice_frame, text="No (n)",     command=lambda: handle_caps_choice('n')).pack(side=tk.LEFT, padx=5)
     tk.Button(choice_frame, text="Add to Ignore (a)", command=lambda: handle_caps_choice('a')).pack(side=tk.LEFT, padx=5)
     tk.Button(choice_frame, text="Auto Lowercase (i)", command=lambda: handle_caps_choice('i')).pack(side=tk.LEFT, padx=5)
 
-    # Add a label for the explanation
-    explanation_label = tk.Label(choice_frame, text="y= lowercase this instance, n= keep this instance, a= add to ignore list, i= add to auto-lowercase list")
-    explanation_label.pack(side=tk.LEFT, padx=5)
+    # Resize window to fit buttons
+    root.update_idletasks()
+    root.geometry(f"{root.winfo_reqwidth()}x{root.winfo_reqheight()}")
+    log_message("UI buttons created and window resized", level="DEBUG")
 
-    # Bind keyboard shortcuts for interactive choices
-    root.bind('y', lambda event: handle_caps_choice('y'))
-    root.bind('n', lambda event: handle_caps_choice('n'))
-    root.bind('a', lambda event: handle_caps_choice('a'))
-    root.bind('i', lambda event: handle_caps_choice('i'))
-    log_message("Keyboard shortcuts bound for all-caps choices.")
+    # Bind keyboard shortcuts
+    for key in ('y','n','a','i'):
+        root.bind(key, lambda e, ch=key: handle_caps_choice(ch))
+    log_message("Keyboard shortcuts bound", level="DEBUG")
 
-
-    # Iterate through the *original* matches again for the interactive pass
-    interactive_prompts_count = 0
-
-    for original_match in all_caps_matches_original:
-         original_sequence_text = original_match.group(0)
-         original_start, original_end = original_match.span()
-         original_span = (original_start, original_end)
-
-         # Check if this sequence text has already been decided upon in this run (auto or interactive)
-         if original_sequence_text in decided_sequences_text:
-             # log_message(f"DEBUG: Skipping interactive prompt for sequence '{original_sequence_text}' (already decided)")
-             continue # Skip interactive prompt
-
-         # --- Interactive Processing for sequences not automatically handled or decided ---
-
-         interactive_prompts_count += 1
-         # Calculate the cumulative offset *before* this original match's position in Pass 2.
-         # This offset is the sum of length changes from all *previous* original matches
-         # that were lowercased (either in Pass 1 or interactively in Pass 2) and occur before the current original_start.
-         cumulative_offset_before_current = 0
-         for prev_match in all_caps_matches_original:
-             if prev_match.start() >= original_start:
-                 break # Stop when we reach the current match or beyond
-
-             prev_start, prev_end = prev_match.span()
-             prev_span = (prev_start, prev_end)
-             # prev_sequence_text = prev_match.group(0) # Not needed for offset calculation here
-
-             # Check if this previous match's original span was lowercased (either in Pass 1 or Pass 2 'y'/'i')
-             if prev_span in lowercased_original_spans:
-                  cumulative_offset_before_current += len(prev_match.group(0).lower()) - (prev_end - prev_start)
+    # 6) Interactive loop over each detected sequence
+    for m in all_caps_matches_original:
+        seq_text = m.group(0)
+        if seq_text in ignore_set:
+            log_message(f"Skipping ignored sequence '{seq_text}'", level="DEBUG")
+            continue
+        if seq_text in decided_sequences_text:
+            continue
 
 
-         # Calculate the current start and end indices in the `text_area` for highlighting and replacement
-         current_start_in_text_area = original_start + cumulative_offset_before_current
-         current_end_in_text_area = original_end + cumulative_offset_before_current
+        # Prepare highlighting
+        span = m.span()
+        start, end = span
+        current_caps_sequence = seq_text
+        current_caps_span = (start, end)
+        log_message(f"Highlighting sequence '{seq_text}' at span {span}", level="DEBUG")
 
-         # Store the current sequence info globally for the button handlers
-         current_caps_sequence = original_sequence_text
-         current_caps_span = (current_start_in_text_area, current_end_in_text_area) # Store span relative to current text state
+        # Display current text (with any prior modifications) and highlight the span
+        text_area.delete("1.0", tk.END)
+        text_area.insert("1.0", text)
+        text_area.tag_remove("highlight_caps", "1.0", tk.END)
+        text_area.tag_add("highlight_caps", f"1.0+{start}c", f"1.0+{end}c")
+        text_area.tag_config("highlight_caps", background="yellow", foreground="black")
+        text_area.see(f"1.0+{start}c")
+        root.update_idletasks()
 
-         log_message(f"Interactive prompt for: '{original_sequence_text}' (Original Span: {original_span}, Current Span: {current_caps_span})")
+        # Wait for user choice
+        status_label.config(text=f"Processing: '{seq_text}'")
+        choice_var.set(0)
+        log_message(f"Waiting for user choice on '{seq_text}'", level="DEBUG")
+        root.wait_variable(choice_var)
+        log_message(f"User completed choice for '{seq_text}'", level="DEBUG")
 
-
-         # Display the found sequence and its context with highlighting in the text area
-         # Highlight the current match in the text area
-         text_area.tag_remove("highlight_caps", "1.0", tk.END)
-         text_area.tag_add("highlight_caps", f"1.0+{current_start_in_text_area}c", f"1.0+{current_end_in_text_area}c")
-         text_area.tag_config("highlight_caps", background="yellow", foreground="black")
-         text_area.see(f"1.0+{current_start_in_text_area}c")
-
-         status_label.config(text=f"Processing All-Caps: '{original_sequence_text}'")
-         root.update_idletasks()
-
-         # Wait here until a choice is made (handle_caps_choice sets choice_var, releasing the wait)
-         choice_var.set(0) # Reset choice_var before waiting
-         root.wait_variable(choice_var)
-
-         # After handling the choice, the text_area and global 'text' variable are updated
-         # and the decision is recorded in ignore_set/lowercase_set and saved.
-         # The loop continues to the next original match.
-
-    # Unbind keyboard shortcuts after all interactive all-caps processing is complete
-    root.unbind('y')
-    root.unbind('n')
-    root.unbind('a')
-    root.unbind('i')
-    log_message("Keyboard shortcuts unbound for all-caps choices.")
-
-    # Clear highlight after processing is complete
-    text_area.tag_remove("highlight_caps", "1.0", tk.END)
-
-    # Clear choice buttons after processing is complete
+    # 7) Cleanup after interactive pass
+    for key in ('y','n','a','i'):
+        root.unbind(key)
     for widget in choice_frame.winfo_children():
         widget.destroy()
-
     status_label.config(text="Finished all-caps processing.")
     root.update_idletasks()
+    log_message("=== Exiting process_all_caps_sequences_gui ===", level="DEBUG")
 
-    log_message(f"DEBUG: Total interactive all-caps prompts presented: {interactive_prompts_count}")
-    log_message("Finished all-caps sequences processing.")
+
+def handle_caps_choice(choice):
+    """
+    Handles the user's selection for an all‑caps sequence (y/n/a/i).
+    """
+    global text, lowercased_original_spans, decided_sequences_text, current_caps_sequence, current_caps_span
+
+    seq = current_caps_sequence
+    start, end = current_caps_span
+    log_message(f"[handle_caps_choice] seq='{seq}', span={start,end}, choice='{choice}'", level="DEBUG")
+
+    if choice.lower() in ('y','yes'):
+        log_message("Lowercasing this instance only", level="DEBUG")
+        # Replace the exact span with its lowercase form
+        text = text[:start] + seq.lower() + text[end:]
+        lowercased_original_spans.add((start,end))
+        decided_sequences_text.add(seq)
+        update_text_area()
+        log_message("Updated text_area after lowercasing one instance", level="DEBUG")
+
+    elif choice.lower() in ('n','no'):
+        log_message("Keeping this instance uppercase and skipping", level="DEBUG")
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('a','add'):
+        log_message("Adding to ignore_set", level="DEBUG")
+        ignore_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('i','auto'):
+        log_message("Bulk-lowercasing all instances", level="DEBUG")
+        lowercase_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+        # Lowercase every instance in the text buffer
+        text = re.sub(rf'\b{re.escape(seq)}\b', seq.lower(), text)
+        decided_sequences_text.add(seq)
+        update_text_area()
+        log_message("Updated text_area after bulk-lowercasing", level="DEBUG")
+
+    else:
+        log_message(f"Unknown choice: {choice}", level="WARNING")
+
+    # Signal the interactive loop to continue
+    choice_var.set(1)
+    log_message(f"Choice handling complete for '{seq}'", level="DEBUG")
+
+
+
+def handle_caps_choice(choice):
+    """
+    Handles the user's selection for an all‑caps sequence.
+    """
+    global text, lowercased_original_spans, decided_sequences_text, current_caps_sequence, current_caps_span
+
+    seq = current_caps_sequence
+    start, end = current_caps_span
+    log_message(f"[handle_caps_choice] seq='{seq}', span={start,end}, choice='{choice}'", level="DEBUG")
+
+    if choice.lower() in ('y','yes'):
+        log_message("Lowercasing this instance only", level="DEBUG")
+        text = text[:start] + seq.lower() + text[end:]
+        lowercased_original_spans.add((start,end))
+        decided_sequences_text.add(seq)
+        update_text_area()
+        log_message("Updated text_area after lowercasing one instance", level="DEBUG")
+
+    elif choice.lower() in ('n','no'):
+        log_message("Keeping this instance uppercase and skipping", level="DEBUG")
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('a','add'):
+        log_message("Adding to ignore_set", level="DEBUG")
+        ignore_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+        decided_sequences_text.add(seq)
+
+    elif choice.lower() in ('i','auto'):
+        log_message("Bulk-lowercasing all instances", level="DEBUG")
+        lowercase_set.add(seq)
+        save_caps_data_file(ignore_set, lowercase_set)
+        text = re.sub(rf'\b{re.escape(seq)}\b', seq.lower(), text)
+        decided_sequences_text.add(seq)
+        update_text_area()
+        log_message("Updated text_area after bulk-lowercasing", level="DEBUG")
+
+    else:
+        log_message(f"Unknown choice: {choice}", level="WARNING")
+
+    # Signal completion to interactive loop
+    choice_var.set(1)
+    log_message(f"Choice handling complete for '{seq}'", level="DEBUG")
 
 
 
@@ -1209,16 +1333,6 @@ def run_processing():
     # Ordered according to the checkboxes in the GUI
 
 
-    # 1. Interactive Choices (Original Bookfix)
-    if process_choices_var.get():
-        log_message("Checkbox 'Interactive Choices' is checked. Executing process_choices().")
-        update_status_label("Starting interactive choices...")
-        process_choices() # Handle interactive replacements based on choices
-        log_message("process_choices() finished.")
-        # process_choices updates the global 'text' variable and text_area
-    else:
-        log_message("Checkbox 'Interactive Choices' is NOT checked. Skipping process_choices().")
-
 
     # 2. Apply Automatic Replacements (Original Bookfix)
     if apply_replacements_var.get():
@@ -1254,6 +1368,18 @@ def run_processing():
     else:
         log_message("Checkbox 'Remove Pagination' is NOT checked. Skipping remove_pagination().")
 
+    # 1. Interactive Choices (Original Bookfix)
+    if process_choices_var.get():
+        log_message("Checkbox 'Interactive Choices' is checked. Executing process_choices().")
+        update_status_label("Starting interactive choices...")
+        process_choices() # Handle interactive replacements based on choices
+        log_message("process_choices() finished.")
+        # process_choices updates the global 'text' variable and text_area
+    else:
+        log_message("Checkbox 'Interactive Choices' is NOT checked. Skipping process_choices().")
+
+
+   # 5 Process all capps
     if process_all_caps_var.get():
         log_message("Checkbox 'Process All-Caps Sequences' is checked.")
 
