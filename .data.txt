@@ -1,6 +1,10 @@
 # this is the default dir to start the program in. If blank the program will ask you to set it and provice a broswer window to select the direcotry. once set you are done.
 
 # DEFAULT_FILE_DIR
+/home/danno/Calibre Library
+
+
+
 
 # PERIODS
 AI
@@ -118,7 +122,40 @@ XO
 # need to adjust these. Also, some of these are book/genre specific. And some are specifc to MY ear so they may need to be adjusted for your region or dialect.
 
 # REPLACE
+BBQ -> Bar-b-que
+close to -> klose to
+close enough -> klose enough
+as close -> as klose
+up-close -> up-klose
+close as -> klose as
+close at -> klose at
+close in -> klose in
+close by -> klose by
+so close -> so klose
+how close -> how klose
+close proximity -> klose proximity
+close-up -> klose-up
+up close -> up klose
+this close -> this klose
+in close -> in klose
+too close -> too klose
+close enough -> klose enough
+last minute -> last minit
+criminal record -> criminal rekkurd
+I'M -> I'm
+rigamortis -> rigamortiss
+breathed -> breeythed
+stipulated -> stippulated
 burger -> bergur
+romulan -> romulin
+maco -> mayko
+T'pol -> ti'pol
+luitenant -> lewtanant
+conjured -> conjur'd
+resequence -> reseekwince
+wafting -> waufting
+resequence -> reseekwince
+resequencing -> reseekwincing
 gimbal -> gimbul
 pita -> peata
 futile -> futill
@@ -130,7 +167,7 @@ Dr. -> doctor
 MTAC -> emtac
 Ma’am  ->  Mam
 SOLCOM -> saulcom
-TSK* ->  TISK
+TSK* ->  tisk
 VTOL\* -> veetol
 WWII -> world war 2
 * ->
@@ -145,7 +182,6 @@ consoles -> konsoles
 couch -> cowch
 debris -> debree
 decel -> decell
-dove -> duv
 ensine -> ensin
 grenade -> grenaid
 grimace -> grimis
@@ -179,6 +215,106 @@ growed -> grew
 knowed -> knew
 throwed -> threw
 writed -> wrote
+1st -> first
+2nd -> second
+3rd -> third
+4th -> fourth
+5th -> fifth
+6th -> sixth
+7th -> seventh
+8th -> eighth
+9th -> ninth
+10th -> tenth
+11th -> eleventh
+12th -> twelfth
+13th -> thirteenth
+14th -> fourteenth
+15th -> fifteenth
+16th -> sixteenth
+17th -> seventeenth
+18th -> eighteenth
+19th -> nineteenth
+20th -> twentieth
+21st -> twenty-first
+22nd -> twenty-second
+23rd -> twenty-third
+24th -> twenty-fourth
+25th -> twenty-fifth
+26th -> twenty-sixth
+27th -> twenty-seventh
+28th -> twenty-eighth
+29th -> twenty-ninth
+30th -> thirtieth
+31st -> thirty-first
+32nd -> thirty-second
+33rd -> thirty-third
+34th -> thirty-fourth
+35th -> thirty-fifth
+36th -> thirty-sixth
+37th -> thirty-seventh
+38th -> thirty-eighth
+39th -> thirty-ninth
+40th -> fortieth
+41st -> forty-first
+42nd -> forty-second
+43rd -> forty-third
+44th -> forty-fourth
+45th -> forty-fifth
+46th -> forty-sixth
+47th -> forty-seventh
+48th -> forty-eighth
+49th -> forty-ninth
+50th -> fiftieth
+51st -> fifty-first
+52nd -> fifty-second
+53rd -> fifty-third
+54th -> fifty-fourth
+55th -> fifty-fifth
+56th -> fifty-sixth
+57th -> fifty-seventh
+58th -> fifty-eighth
+59th -> fifty-ninth
+60th -> sixtieth
+61st -> sixty-first
+62nd -> sixty-second
+63rd -> sixty-third
+64th -> sixty-fourth
+65th -> sixty-fifth
+66th -> sixty-sixth
+67th -> sixty-seventh
+68th -> sixty-eighth
+69th -> sixty-ninth
+70th -> seventieth
+71st -> seventy-first
+72nd -> seventy-second
+73rd -> seventy-third
+74th -> seventy-fourth
+75th -> seventy-fifth
+76th -> seventy-sixth
+77th -> seventy-seventh
+78th -> seventy-eighth
+79th -> seventy-ninth
+80th -> eightieth
+81st -> eighty-first
+82nd -> eighty-second
+83rd -> eighty-third
+84th -> eighty-fourth
+85th -> eighty-fifth
+86th -> eighty-sixth
+87th -> eighty-seventh
+88th -> eighty-eighth
+89th -> eighty-ninth
+90th -> ninetieth
+91st -> ninety-first
+92nd -> ninety-second
+93rd -> ninety-third
+94th -> ninety-fourth
+95th -> ninety-fifth
+96th -> ninety-sixth
+97th -> ninety-seventh
+98th -> ninety-eighth
+99th -> ninety-ninth
+100th -> one hundredth
 
 
 
@@ -189,63 +325,115 @@ writed -> wrote
 # CONtest and contest exactly the same. If convert to lowercase is dissabled then it shouldn't be an issue.
 
 # CHOICE
+dove -> duv ; dowv
 morale -> morAL ; more-al
 lead -> leed ; led
 tear -> teer ; tair
 bow -> boh ; bau
-close -> klohZ ; close
+bowed -> boughed ; bo'd
+close -> klohz ; close
 sow -> soh ; sau
 wind -> wined ; wind
 minute -> minit ; mynoot
-object -> OBjekt ; UBjekt
+object -> objekt ; ubjekt
 read -> reed ; red
 row -> row ; rau
 bass -> base ; bhass
 alternate -> allturnit ; awlturneight
-contract -> CONtrakt ; KUNtrakt
+contract -> contrakt ; kuntrakt
 attribute -> attribute ; at-tribbute
 desert -> dezurt ; dizurt
-excuse -> exkuZe ; exkuCe
-refuse -> refuSe ; refuZe
+excuse -> exkuze ; exkuce
+refuse -> refuse ; refuze
 polish -> polish ; pole-ish
 present -> present ; prezent
-record -> rekord ; rekkURD
+record -> rekord ; rekkurd
 invalid ->  inv-alid ; in-valid
 wound -> woond ; wownd
 resume -> rezoom ; rezzoomay
-contest -> CONtest ; Cuntest
+contest -> contest ; cuntest
+live -> liv ; lyve
+tear gas -> teer gas
 
 # this section below are words always converted to lowercase. good for words like NASA which should be pronoucned as nasa not spelled out.
 
 
 # UPPER_TO_LOWER
+CHAPTER
+CHAPTERS
+EPILOGUE
+HALO
 HUD
 NASA
 NAV
+SOCO
+STOP
+SWAT
+UK
 # CAP_IGNORE
+ACDC
 AI
 AIDS
+AM
 ASAP
 AWOL
+BBC
+BMW
+CCTV
+CEO
+CGI
+CO
 COVID
+CSI
 DARPA
 DC
+DJ
+DNA
+DS
+EEC
+ESP
+ET
+ETA
 EVA
+FBI
 FTL
 GQ
+HQ
 HUD
 ID
 IDF
+IP
+IPA
+IRA
 LA
+LSD
+MC
+MOT
 NASA
 NATO
 NC
+NGG
+NYC
+OK
+PA
+PC
+PD
 PT
 RADAR
 RCS
 SARS
+SIA
+SIA HQ
+SIB
+TSW
+TV
 UCLA
+UE
+UF
+UK
+UPS
 US
 USMC
 USS
 XO
+XX
