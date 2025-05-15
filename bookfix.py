@@ -294,7 +294,8 @@ def load_data_file():
 
     else:
         log_message(f"Data file '{DATA_FILE_NAME}' not found. Starting with empty rules.", level="WARNING")
-        default_file_directory = None # Ensure this is None if file doesn't exist
+
+    log_message(f"DEBUG: load_data_file complete.  ignore_set={ignore_set}", level="DEBUG")
 
 
 def save_default_directory_to_data_file(directory_path):
@@ -913,6 +914,9 @@ def process_all_caps_sequences_gui():
 
     # Log entry
     log_message("=== Entering process_all_caps_sequences_gui ===", level="DEBUG")
+    log_message("=== Entering process_all_caps_sequences_gui ===", level="DEBUG")
+    log_message(f"DEBUG: process sees ignore_set = {ignore_set}", level="DEBUG")
+
 
     # 1) Snapshot text for regex detection
     original_for_detection = text  # keep original for matching only
@@ -977,6 +981,7 @@ def process_all_caps_sequences_gui():
         seq_text = m.group(0)
         if seq_text in ignore_set:
             log_message(f"Skipping ignored sequence '{seq_text}'", level="DEBUG")
+            log_message(f"DEBUG: Skipping “{seq_text}” (found in ignore_set)", level="DEBUG")
             continue
         if seq_text in decided_sequences_text:
             continue
@@ -1013,99 +1018,6 @@ def process_all_caps_sequences_gui():
     status_label.config(text="Finished all-caps processing.")
     root.update_idletasks()
     log_message("=== Exiting process_all_caps_sequences_gui ===", level="DEBUG")
-
-
-def handle_caps_choice(choice):
-    """
-    Handles the user's selection for an all‑caps sequence (y/n/a/i).
-    """
-    global text, lowercased_original_spans, decided_sequences_text, current_caps_sequence, current_caps_span
-
-    seq = current_caps_sequence
-    start, end = current_caps_span
-    log_message(f"[handle_caps_choice] seq='{seq}', span={start,end}, choice='{choice}'", level="DEBUG")
-
-    if choice.lower() in ('y','yes'):
-        log_message("Lowercasing this instance only", level="DEBUG")
-        # Replace the exact span with its lowercase form
-        text = text[:start] + seq.lower() + text[end:]
-        lowercased_original_spans.add((start,end))
-        decided_sequences_text.add(seq)
-        update_text_area()
-        log_message("Updated text_area after lowercasing one instance", level="DEBUG")
-
-    elif choice.lower() in ('n','no'):
-        log_message("Keeping this instance uppercase and skipping", level="DEBUG")
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('a','add'):
-        log_message("Adding to ignore_set", level="DEBUG")
-        ignore_set.add(seq)
-        save_caps_data_file(ignore_set, lowercase_set)
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('i','auto'):
-        log_message("Bulk-lowercasing all instances", level="DEBUG")
-        lowercase_set.add(seq)
-        save_caps_data_file(ignore_set, lowercase_set)
-        # Lowercase every instance in the text buffer
-        text = re.sub(rf'\b{re.escape(seq)}\b', seq.lower(), text)
-        decided_sequences_text.add(seq)
-        update_text_area()
-        log_message("Updated text_area after bulk-lowercasing", level="DEBUG")
-
-    else:
-        log_message(f"Unknown choice: {choice}", level="WARNING")
-
-    # Signal the interactive loop to continue
-    choice_var.set(1)
-    log_message(f"Choice handling complete for '{seq}'", level="DEBUG")
-
-
-
-def handle_caps_choice(choice):
-    """
-    Handles the user's selection for an all‑caps sequence.
-    """
-    global text, lowercased_original_spans, decided_sequences_text, current_caps_sequence, current_caps_span
-
-    seq = current_caps_sequence
-    start, end = current_caps_span
-    log_message(f"[handle_caps_choice] seq='{seq}', span={start,end}, choice='{choice}'", level="DEBUG")
-
-    if choice.lower() in ('y','yes'):
-        log_message("Lowercasing this instance only", level="DEBUG")
-        text = text[:start] + seq.lower() + text[end:]
-        lowercased_original_spans.add((start,end))
-        decided_sequences_text.add(seq)
-        update_text_area()
-        log_message("Updated text_area after lowercasing one instance", level="DEBUG")
-
-    elif choice.lower() in ('n','no'):
-        log_message("Keeping this instance uppercase and skipping", level="DEBUG")
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('a','add'):
-        log_message("Adding to ignore_set", level="DEBUG")
-        ignore_set.add(seq)
-        save_caps_data_file(ignore_set, lowercase_set)
-        decided_sequences_text.add(seq)
-
-    elif choice.lower() in ('i','auto'):
-        log_message("Bulk-lowercasing all instances", level="DEBUG")
-        lowercase_set.add(seq)
-        save_caps_data_file(ignore_set, lowercase_set)
-        text = re.sub(rf'\b{re.escape(seq)}\b', seq.lower(), text)
-        decided_sequences_text.add(seq)
-        update_text_area()
-        log_message("Updated text_area after bulk-lowercasing", level="DEBUG")
-
-    else:
-        log_message(f"Unknown choice: {choice}", level="WARNING")
-
-    # Signal completion to interactive loop
-    choice_var.set(1)
-    log_message(f"Choice handling complete for '{seq}'", level="DEBUG")
 
 
 
