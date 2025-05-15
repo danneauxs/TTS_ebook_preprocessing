@@ -209,6 +209,8 @@ def load_data_file():
             log_message("DEBUG: Starting data file parsing line by line.")
             for i, line in enumerate(lines):
                 stripped_line = line.strip()
+                # strip out any leading BOM / ZERO‑WIDTH chars
+                stripped_line = stripped_line.lstrip('\ufeff\u200b\u00A0')
                 log_message(f"DEBUG: Line {i+1}: '{stripped_line}'")
 
                 # Check if the line is a known section marker
@@ -422,6 +424,9 @@ def save_caps_data_file(ignore_set, lowercase_set):
 
     for i, line in enumerate(original_lines):
          stripped_line = line.strip()
+        # strip out any leading BOM / ZERO‑WIDTH chars
+         stripped_line = stripped_line.lstrip('\ufeff\u200b\u00A0')
+
          # Check if the line is any known section marker
          if stripped_line in ALL_SECTION_MARKERS:
               # If we were in a section, mark its end
@@ -1057,88 +1062,64 @@ def convert_to_lowercase():
 
 
 # --- Roman Numeral Conversion Functions ---
-def roman_to_arabic(roman):
-    """
-    Converts a single Roman numeral string to its Arabic (integer) equivalent.
-    Handles standard Roman numerals (I, V, X, L, C, D, M) including subtractive notation (IV, IX, etc.).
-    Includes a basic check for validity as a Roman numeral pattern.
-
-    Args:
-        roman (str): The Roman numeral string (case-insensitive).
-
-    Returns:
-        int or None: The Arabic integer value, or None if the input is invalid
-                     or is just the single character "I" (which is skipped).
-    """
-    # Mapping of Roman numeral characters to their integer values
-    roman_map = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
-    # Regex pattern to validate the format of a Roman numeral
-    roman_regex = r'\bM{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})\b'
-
-    # Skip single "I" as it's often part of other words and not a numeral in text
-    if roman.upper() == "I":
-        return None
-    # Check if the input string matches the standard Roman numeral regex pattern
-    if not re.fullmatch(roman_regex, roman.upper()):
-        return None # Return None if it doesn't match the expected pattern
-
-    result = 0 # Initialize the result
-    i = 0 # Index for iterating through the Roman numeral string
-    while i < len(roman):
-        # Get the integer value of the current character
-        current_val = roman_map[roman[i].upper()]
-        # Check if there's a next character and if its value is greater than the current one
-        if i + 1 < len(roman) and current_val < roman_map[roman[i + 1].upper()]:
-            # This is a subtractive case (e.g., IV, IX)
-            result += roman_map[roman[i + 1].upper()] - current_val
-            i += 2 # Move index past both characters
-        else:
-            # This is an additive case (e.g., V, II, XII)
-            result += current_val
-            i += 1 # Move index to the next character
-    return result # Return the calculated Arabic value
 
 def convert_roman_numerals():
     """
-    Finds Roman numerals (in uppercase) in the text and converts them to Arabic integers.
-    Avoids converting single 'I' and numerals adjacent to apostrophes or periods.
-    Processes line by line to handle potential formatting issues.
+    Finds Roman numerals in the global `text` and converts them to Arabic integers.
+    - Converts single‑letter V, X, L, C, D, M (but never I)
+    - Converts multi‑letter sequences (e.g. IV → 4, VII → 7)
+    - Skips any token adjacent to an apostrophe (so “I’M”, “C’Pol”, etc. stay untouched)
     """
     global text
-    log_message("Starting converting Roman numerals.")
-    lines = text.splitlines() # Split the text into individual lines
-    processed_lines = [] # List to store lines after processing
+    log_message("Starting converting Roman numerals.", level="INFO")
 
-    # Iterate through each line
-    for line in lines:
-        # Define the regex pattern for finding Roman numerals (same as in roman_to_arabic)
-        roman_regex = r'(?<![\w\'’])(?=[MDCLXVI]+\b)(?![A-Z])([MDCLXVI]+)\b(?![\w\'’])' # Improved regex (for context)
-        # Find all potential Roman numerals (uppercase and matching pattern) and their positions
-        roman_numerals = [(match.group(0), match.span()) for match in re.finditer(roman_regex, line) if match.group(0).isupper()]
+    # Match either:
+    #  • a single‑letter [V X L C D M]  (I is never in this set)
+    #  • or a multi‑letter run of [MDCLXVI] length ≥ 2
+    # with no apostrophe immediately before or after.
+    roman_pattern = r"(?<!')\b(?:[VXLCDM]|[MDCLXVI]{2,})\b(?!')"
 
-        replacements = [] # List to store valid Roman numeral conversions (start_idx, end_idx, arabic_string)
-        # Iterate through the found potential Roman numerals
-        for roman, (start, end) in roman_numerals:
-            # Skip single 'I's or numerals that look like they are part of a word with punctuation
-            if len(roman) == 1 and ((start > 0 and line[start - 1] in ['.', "'"]) or (end < len(line) and line[end] in ['.', "'"])):
-                continue
+    def _replace(m):
+        token = m.group(0)
+        val = roman_to_arabic(token)
+        # only replace if we got back a positive integer
+        if isinstance(val, int) and val > 0:
+            return str(val)
+        # otherwise, leave the original token alone
+        return token
 
-            # Attempt to convert the Roman numeral to Arabic
-            arabic = roman_to_arabic(roman)
-            # If the conversion is successful (returns an integer, not None)
-            if arabic is not None:
-                replacements.append((start, end, str(arabic))) # Store the conversion details
+    text = re.sub(roman_pattern, _replace, text)
+    update_text_area()
+    log_message("Finished converting Roman numerals.", level="INFO")
 
-        # Apply replacements from the end of the line to the beginning to avoid index issues
-        new_line = list(line) # Convert line to a mutable list of characters
-        for start, end, replacement in reversed(replacements):
-            new_line[start:end] = list(replacement) # Replace the Roman numeral characters with the Arabic number characters
-        processed_line = "".join(new_line) # Join the list of characters back into a string
-        processed_lines.append(processed_line) # Add the modified line to the list
 
-    # Join all processed lines back together into the main text block
-    text = "\n".join(processed_lines)
-    log_message("Finished converting Roman numerals.")
+
+def roman_to_arabic(roman):
+    """
+    Converts a single Roman numeral string to its Arabic integer equivalent.
+    Returns None if the string is not a valid Roman numeral or is "I".
+    """
+    roman = roman.upper()
+    # skip lone "I"
+    if roman == "I":
+        return None
+
+    # Strict validator for numerals 1–3999
+    validator = r"^M{0,3}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})$"
+    if not re.fullmatch(validator, roman):
+        return None
+
+    # Map and compute using subtractive notation
+    roman_map = {'I': 1, 'V': 5, 'X': 10, 'L': 50,
+                 'C': 100, 'D': 500, 'M': 1000}
+    total = 0
+    prev = 0
+    for ch in reversed(roman):
+        val = roman_map[ch]
+        total += val if val >= prev else -val
+        prev = val
+
+    return total
 
 
 # --- Pagination Removal Function ---
