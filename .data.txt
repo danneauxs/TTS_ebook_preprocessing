@@ -1,164 +1,79 @@
 # this is the default dir to start the program in. If blank the program will ask you to set it and provice a broswer window to select the direcotry. once set you are done.
 
 # DEFAULT_FILE_DIR
-/home/danno/Calibre Library
 
 
 
 
-# PERIODS
-AI
-AM
-APC
-ATF
-ATV
-BC
-BP
-CDC
-CEO
-CGI
-CIA
-CIC
-CMO
-CO
-COD
-CPL
-CPO
-CPR
-CPU
-CT
-DEA
-DHS
-DJ
-DNA
-DOJ
-DZ
-ECG
-EEG
-EM
-EMF
-EMP
-EMS
-EMT
-EMU
-EPA
-ETA
-EVA
-FBI
-FCC
-FDA
-FL
-FM
-FTL
-GED
-GMO
-GPS
-HIV
-HQ
-ICBM
-ICU
-ID
-IED
-IP
-IQ
-IRS
-KIA
-LED
-LZ
-MBA
-MCU
-MIA
-MIT
-MOA
-MOS
-MPH
-MRE
-MRI
-MSP
-MUH
-MUSA
-NCO
-NCOIC
-NDA
-NFL
-NSA
-OJT
-PFC
-POW
-PSI
-PTSD
-QT
-RNA
-RPM
-SEC
-SF
-SOB
-SOG
-SONAR
-SOP
-SOS
-SR
-STC
-SUB
-SUV
-THC
-TV
-UAV
-UFP
-UN
-UPF
-US
-USA
-VA
-VIP
-VP
-VR
-WHO
-WMD
-X-RAY
-XO
+
+
 
 # this is the automatic replace.  the given word is simply replaced with the alternative to correct pronouciation.  Depending on your tts engine you might
 # need to adjust these. Also, some of these are book/genre specific. And some are specifc to MY ear so they may need to be adjusted for your region or dialect.
 
 # REPLACE
-BBQ -> Bar-b-que
-close to -> klose to
-close enough -> klose enough
-as close -> as klose
-up-close -> up-klose
-close as -> klose as
-close at -> klose at
-close in -> klose in
-close by -> klose by
-so close -> so klose
-how close -> how klose
-close proximity -> klose proximity
-close-up -> klose-up
-up close -> up klose
-this close -> this klose
-in close -> in klose
-too close -> too klose
-close enough -> klose enough
+KM - kilometers
+pique -> peek
+any minute -> any minit
+the wind -> the wynd
+lead to -> leed to
+lead at -> leed at
+to lead -> to leed
+lead the -> leed the
+BBQ -> barbihq
+#close to -> klose to
+#close-quarter -> klose-quarter
+#close quarter -> klose quarter
+#close enough -> klose enough
+#as close -> as klose
+#up-close -> up-klose
+#close as -> klose as
+#close at -> klose at
+#close in -> klose in
+#close by -> klose by
+#so close -> so klose
+#how close -> how klose
+#close proximity -> klose proximity
+#close-up -> klose-up
+#up close -> up klose
+#this close -> this klose
+#in close -> in klose
+#too close -> too klose
+#close enough -> klose enough
+#so close -> so klose
+#close call -> klose call
+#close calls -> klose calls
+#close-trimmed -> klose-trimmed
+#close attention -> klose attention
+#close up -> klose up
+#so close -> so klose
+#close to -> klose to
+#up close -> up klose
+#close to -> klose to
+#close enough -> klose enough
+#close call -> klose call
+#was close -> was klose
+#close range -> klose range
+
 last minute -> last minit
-criminal record -> criminal rekkurd
+#criminal record -> criminal reckurd
 I'M -> I'm
 rigamortis -> rigamortiss
-breathed -> breeythed
+#breathed -> breeythed
 stipulated -> stippulated
 burger -> bergur
 romulan -> romulin
 maco -> mayko
-T'pol -> ti'pol
-luitenant -> lewtanant
-conjured -> conjur'd
-resequence -> reseekwince
+#T'pol -> ti'pol
+#luitenant -> luetenant
+#conjured -> conjur'd
+resequenced -> reseekwinced
 wafting -> waufting
 resequence -> reseekwince
 resequencing -> reseekwincing
-gimbal -> gimbul
-pita -> peata
-futile -> futill
+#gimbal -> gimbul
+#pita -> peeta
+#futile -> futill
 andromeda -> an-dromadda
 andromeda -> Andrama-dinns
 regge -> raygay
@@ -171,30 +86,31 @@ TSK* ->  tisk
 VTOL\* -> veetol
 WWII -> world war 2
 * ->
-bolo -> bo-low
-badass -> bad-ass
-badasses -> bad-asses
+#bolo -> bo-low
+#sizable -> syzable
+#badass -> bad-ass
+#badasses -> bad-asses
 barrage -> bahraj
-bolo -> bowlow
-bolos -> bo lows
+#bolo -> bowlow
+#bolos -> bo lows
 console -> konsole
 consoles -> konsoles
 couch -> cowch
 debris -> debree
 decel -> decell
 ensine -> ensin
-grenade -> grenaid
+#grenade -> grenaid
 grimace -> grimis
-nanite -> nan-ite
-necktie -> necktye
+#nanite -> nan-ite
+#necktie -> necktye
 panged -> paynged
 stating -> stayting
-wound -> woond
 staring -> stairing
 lasagne -> lazanya
-jean-luc -> schaun-luke
+
 dalek -> darlek
 breathed -> breethed
+#past tense
 sleeped -> slept
 speeded -> sped
 kneeled -> knelt
@@ -215,15 +131,15 @@ growed -> grew
 knowed -> knew
 throwed -> threw
 writed -> wrote
-1st -> first
-2nd -> second
-3rd -> third
-4th -> fourth
-5th -> fifth
-6th -> sixth
-7th -> seventh
-8th -> eighth
-9th -> ninth
+ 1st -> first
+' 2nd' -> second
+' 3rd' -> third
+' 4th' -> fourth
+' 5th' -> fifth
+' 6th' -> sixth
+' 7th' -> seventh
+' 8th' -> eighth
+' 9th' -> ninth
 10th -> tenth
 11th -> eleventh
 12th -> twelfth
@@ -315,7 +231,23 @@ writed -> wrote
 98th -> ninety-eighth
 99th -> ninety-ninth
 100th -> one hundredth
-
+the object -> the objekt
+bowed -> boughed
+tear gas -> teer gas
+#excuse me -> exkuze me
+capitalist -> kapitalist
+capitalism -> kapitalism
+’ -> '
+ Lt. -> luetenant
+ lt. -> luetenant
+#dove at -> dove at
+#dove toward -> dove toward
+to read -> to reed
+had read -> had red
+#excuse me -> exkuze me
+… ->
+to live -> to liv
+xeno -> zeeno
 
 
 # This is for heteronyms - words that are spelled one way but can be pronouced differently depending on meaning.
@@ -325,35 +257,33 @@ writed -> wrote
 # CONtest and contest exactly the same. If convert to lowercase is dissabled then it shouldn't be an issue.
 
 # CHOICE
-dove -> duv ; dowv
-morale -> morAL ; more-al
+# morale -> morAL ; more-al
 lead -> leed ; led
 tear -> teer ; tair
-bow -> boh ; bau
-bowed -> boughed ; bo'd
-close -> klohz ; close
-sow -> soh ; sau
-wind -> wined ; wind
+#bow -> bo ; bau
+#close -> cloze ; close
+# sow -> soh ; sau
+wind -> wined ; wynd
 minute -> minit ; mynoot
 object -> objekt ; ubjekt
 read -> reed ; red
 row -> row ; rau
-bass -> base ; bhass
-alternate -> allturnit ; awlturneight
-contract -> contrakt ; kuntrakt
-attribute -> attribute ; at-tribbute
-desert -> dezurt ; dizurt
-excuse -> exkuze ; exkuce
-refuse -> refuse ; refuze
-polish -> polish ; pole-ish
-present -> present ; prezent
-record -> rekord ; rekkurd
-invalid ->  inv-alid ; in-valid
-wound -> woond ; wownd
-resume -> rezoom ; rezzoomay
-contest -> contest ; cuntest
+bass -> base ; bass
+alternate -> allturnit ; awlturnate
+#contract -> contrakt ; kuntrakt
+#attribute -> attribute ; at-tribbute
+#desert -> dezurt ; dizurt
+#excuse -> exkuze ; exkuce
+#refuse -> refuse ; refuze
+polish -> pollish ; pole-ish
+#present -> present ; prezent
+#record -> rekord ; reckurd
+invalid ->  invalid ; in-valid
+wound -> woond ; wow'nd
+#resume -> rezoom ; rezzoomay
+#contest -> contest ; cuntest
 live -> liv ; lyve
-tear gas -> teer gas
+
 
 # this section below are words always converted to lowercase. good for words like NASA which should be pronoucned as nasa not spelled out.
 
@@ -362,8 +292,10 @@ tear gas -> teer gas
 CHAPTER
 CHAPTERS
 EPILOGUE
+FUBAR
 HALO
 HUD
+MEDEVAC
 NASA
 NAV
 SOCO
@@ -375,65 +307,131 @@ ACDC
 AI
 AIDS
 AM
+APB
+APC
 ASAP
+ATCS
 AWOL
 BBC
+BMG
 BMW
+CAD
+CAG
 CCTV
+CDF
 CEO
 CGI
+CIC
+CIS
+CNN
 CO
+COB
 COVID
 CSI
+CSV
 DARPA
 DC
 DJ
 DNA
 DS
+ECC
 EEC
+EMF
+EMP
 ESP
 ET
 ETA
 EVA
 FBI
 FTL
+GPS
 GQ
+HG
 HQ
+HR
 HUD
 ID
 IDF
 IP
 IPA
+IQ
+IR
 IRA
+IRB
+KIA
 LA
+LED
+LOC
 LSD
+LT
+LZ
+MAA
+MBA
 MC
+MIA
 MOT
+MP
+MRE
+MTB
 NASA
 NATO
 NC
+NCO
 NGG
 NYC
+NYPD
+OCS
 OK
+OOD
 PA
 PC
 PD
+PFC
 PT
+PTSD
+PX
 RADAR
+RAF
 RCS
+REM
+RN
+ROE
+RPG
 SARS
+SBD
 SIA
 SIA HQ
 SIB
+SO
+SOP
+SSI
+SUV
+TDF
 TSW
 TV
 UCLA
 UE
 UF
 UK
+UN
 UPS
 US
+USA
 USMC
+USN
 USS
+VB
+VIP
+VR
+WAAF
 XO
 XX
+
+# This section lists roman numerals that should NOT be converted to Arabic numbers.
+# Add valid roman numerals here that appear in contexts where conversion is unwanted.
+# Examples: CD (compact disc), LCD (liquid crystal display), DVD (digital video disc)
+
+# ROMAN_IGNORE
+CD
+LCD
+DVD
