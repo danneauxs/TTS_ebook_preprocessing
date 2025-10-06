@@ -1,4 +1,9 @@
-
+# No longer updated due to lack of interest.
+what you missed out on. AI integration:
+  AI does 99.9% correct homograph phonetic spelling replacemnt.
+  AI does number conversion to spoken formats. December 1982 is read December Nineteen Eighty Two, 1100 feet high is read eleven hundred feet not one one zero zero or one thousand one hundred.  Abbreviaitons are exanded so Dr. is not read D R but doctor, Mrs. is Misses etc.  
+  Ridiculous capitalizations are removed but DVD stays the same but ALL HANDS REPORT is changed to All hands report so weird shit doesn't happen.  
+  
 # Bookfix - TTS Ebook Preprocessing Tool
 
 Bookfix is a comprehensive GUI-based text processing application designed specifically for cleaning and formatting ebook text files for text-to-speech (TTS) and other applications. It provides both automated and interactive tools to transform raw ebook text into polished, readable content.
